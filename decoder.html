@@ -1,0 +1,1353 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>SVBF Player · 纯解码器</title>
+<style>
+  :root {
+    --bg: #05080b;
+    --bg-2: #071019;
+    --panel: rgba(9, 17, 24, .94);
+    --panel-2: #0b151e;
+    --line: #172a37;
+    --line-bright: #244658;
+    --text: #d9e8ef;
+    --muted: #6f8999;
+    --muted-2: #4d6675;
+    --accent: #2ce8b2;
+    --accent-dim: rgba(44, 232, 178, .12);
+    --blue: #59b7ff;
+    --warn: #ffb45b;
+    --red: #ff6077;
+    --mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    --sans: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { min-height: 100%; background: var(--bg); }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+    color: var(--text);
+    background:
+      radial-gradient(circle at 12% -8%, rgba(32, 174, 143, .14), transparent 34%),
+      radial-gradient(circle at 92% 4%, rgba(44, 111, 198, .11), transparent 30%),
+      linear-gradient(180deg, #071018 0%, var(--bg) 42%, #04070a 100%);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: .22;
+    background-image:
+      linear-gradient(rgba(56, 112, 132, .11) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 112, 132, .11) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.35) 55%, transparent 100%);
+  }
+
+  .page-wrap {
+    position: relative;
+    z-index: 1;
+    width: min(1080px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 30px 0 40px;
+  }
+
+  .simple-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding-bottom: 22px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid rgba(40, 74, 92, .5);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .brand-mark {
+    position: relative;
+    display: grid;
+    flex: 0 0 46px;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border: 1px solid var(--accent);
+    border-radius: 5px;
+    color: var(--accent);
+    background: linear-gradient(145deg, rgba(44, 232, 178, .14), rgba(44, 232, 178, .02));
+    box-shadow: inset 0 0 18px rgba(44, 232, 178, .07), 0 0 24px rgba(44, 232, 178, .08);
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -.08em;
+  }
+
+  .brand-mark::before, .brand-mark::after {
+    content: "";
+    position: absolute;
+    width: 7px; height: 7px;
+    border-color: var(--accent);
+    opacity: .7;
+  }
+  .brand-mark::before { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; }
+  .brand-mark::after { right: -1px; bottom: -1px; border-right: 2px solid; border-bottom: 2px solid; }
+
+  h1 {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: clamp(17px, 2vw, 22px);
+    font-weight: 650;
+    letter-spacing: .14em;
+  }
+  h1 span { color: var(--accent); }
+
+  .brand-sub {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: .08em;
+  }
+
+  .offline-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 1px solid rgba(44, 232, 178, .2);
+    border-radius: 3px;
+    color: var(--accent);
+    background: rgba(44, 232, 178, .045);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .12em;
+  }
+
+  .pulse-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 0 rgba(44, 232, 178, .45);
+    animation: pulse 2.3s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(44, 232, 178, .4); }
+    55% { box-shadow: 0 0 0 6px rgba(44, 232, 178, 0); }
+  }
+
+  .panel {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background:
+      linear-gradient(145deg, rgba(14, 27, 37, .78), rgba(6, 12, 18, .94) 42%),
+      var(--panel);
+    box-shadow: 0 20px 70px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .025);
+  }
+  .panel::before, .panel::after {
+    content: "";
+    position: absolute;
+    z-index: 3;
+    width: 12px; height: 12px;
+    pointer-events: none;
+  }
+  .panel::before { top: -1px; left: -1px; border-top: 1px solid var(--line-bright); border-left: 1px solid var(--line-bright); }
+  .panel::after { right: -1px; bottom: -1px; border-right: 1px solid var(--line-bright); border-bottom: 1px solid var(--line-bright); }
+
+  .panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 20px 22px 17px;
+    border-bottom: 1px solid rgba(26, 49, 63, .7);
+  }
+
+  .kicker {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .18em;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: .03em;
+  }
+
+  .head-tag {
+    flex-shrink: 0;
+    margin-top: 3px;
+    padding: 4px 8px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .018);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .1em;
+  }
+
+  .panel-body { padding: 20px 22px 22px; }
+
+  .viewer {
+    overflow: hidden;
+    border: 1px solid #1b3442;
+    border-radius: 5px;
+    background: #020507;
+    box-shadow: inset 0 0 60px rgba(0, 0, 0, .7);
+  }
+
+  .viewer-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 34px;
+    padding: 0 12px;
+    border-bottom: 1px solid rgba(27, 52, 65, .74);
+    background: rgba(11, 23, 31, .88);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .11em;
+  }
+
+  .channel-label { display: flex; align-items: center; gap: 7px; color: var(--muted); }
+  .channel-label b { color: #b6cfdb; font-weight: 500; }
+
+  .rec-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 8px rgba(255, 96, 119, .7);
+  }
+
+  .signal-text { color: var(--muted-2); }
+
+  .screen-wrap {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #000;
+    isolation: isolate;
+  }
+
+  .screen-wrap.is-drag { outline: 1px solid var(--accent); outline-offset: -5px; }
+
+  #screen {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    image-rendering: pixelated;
+    background: #000;
+  }
+
+  .scanlines {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    opacity: .16;
+    background: repeating-linear-gradient(
+      to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px,
+      rgba(0, 0, 0, .34) 3px, rgba(0, 0, 0, .34) 4px
+    );
+    mix-blend-mode: multiply;
+  }
+
+  .screen-vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 52%, rgba(0, 0, 0, .3) 100%);
+  }
+
+  .screen-hud {
+    position: absolute;
+    right: 10px; bottom: 9px; left: 10px;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: rgba(198, 228, 235, .72);
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: .08em;
+    text-shadow: 0 1px 2px #000, 0 0 5px #000;
+    pointer-events: none;
+  }
+
+  .screen-hud b {
+    color: rgba(222, 248, 245, .94);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .hud-sync { color: rgba(44, 232, 178, .85) !important; }
+
+  .player-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: radial-gradient(ellipse at center, rgba(2, 8, 10, .34) 0%, rgba(2, 6, 8, .68) 72%, rgba(2, 4, 6, .82) 100%);
+    transition: opacity .22s ease, visibility .22s;
+  }
+  .player-overlay.is-hidden { visibility: hidden; opacity: 0; pointer-events: none; }
+
+  .overlay-frame {
+    width: min(330px, 100%);
+    padding: 19px 20px 18px;
+    border-top: 1px solid rgba(44, 232, 178, .48);
+    border-bottom: 1px solid rgba(44, 232, 178, .16);
+    background: linear-gradient(90deg, rgba(2, 10, 10, .74), rgba(4, 16, 16, .55), rgba(2, 10, 10, .74));
+    text-align: center;
+    backdrop-filter: blur(2px);
+  }
+
+  .overlay-code {
+    margin-bottom: 7px;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .2em;
+    text-shadow: 0 0 12px rgba(44, 232, 178, .45);
+  }
+
+  .overlay-title { font-size: 16px; font-weight: 600; letter-spacing: .04em; line-height: 1.45; }
+  .overlay-sub { margin-top: 5px; color: #829b9f; font-size: 11px; line-height: 1.55; }
+
+  .unlock-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 34px;
+    margin-top: 14px;
+    padding: 6px 13px;
+    border: 1px solid rgba(44, 232, 178, .38);
+    border-radius: 3px;
+    color: #b7ffe8;
+    background: rgba(44, 232, 178, .08);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .06em;
+    cursor: pointer;
+    transition: border-color .16s, background .16s;
+  }
+  .unlock-btn:hover { border-color: rgba(44, 232, 178, .72); background: rgba(44, 232, 178, .14); }
+
+  .timeline { height: 2px; background: #10202a; }
+  .timeline-fill {
+    width: 0; height: 100%;
+    background: linear-gradient(90deg, #1c9a7a, var(--accent));
+    box-shadow: 0 0 8px rgba(44, 232, 178, .4);
+    transition: width .1s linear;
+  }
+
+  .viewer-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-height: 34px;
+    padding: 7px 12px;
+    border-top: 1px solid rgba(25, 47, 60, .8);
+    background: rgba(9, 19, 26, .86);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .04em;
+  }
+
+  .key-hint { display: flex; align-items: center; gap: 7px; color: var(--muted); }
+  .key-hint kbd {
+    padding: 2px 6px;
+    border: 1px solid #2a4655;
+    border-bottom-color: #3a5d6e;
+    border-radius: 2px;
+    color: #acc6d2;
+    background: #0e1c25;
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: .06em;
+  }
+
+  .viewer-time { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .decoder-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 41px;
+    padding: 10px 16px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    font-size: 12.5px;
+    font-weight: 550;
+    letter-spacing: .04em;
+    cursor: pointer;
+    transition: background .18s, border-color .18s, color .18s, opacity .18s, box-shadow .18s;
+  }
+  .btn:disabled { cursor: not-allowed; opacity: .38; }
+
+  .btn-secondary {
+    border-color: var(--line-bright);
+    color: #c6dae5;
+    background: rgba(30, 56, 70, .26);
+  }
+  .btn-secondary:not(:disabled):hover { border-color: #35637a; background: rgba(43, 81, 98, .3); }
+  .decoder-tools .btn { flex: 0 0 auto; min-height: 36px; padding: 7px 12px; font-size: 11px; }
+
+  .bin-name {
+    min-width: 0; overflow: hidden;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    margin-top: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(29, 53, 66, .7);
+    border-radius: 3px;
+    background: rgba(29, 53, 66, .7);
+  }
+
+  .info-cell { min-width: 0; padding: 10px 11px; background: #08121a; }
+  .info-cell span {
+    display: block;
+    overflow: hidden;
+    color: var(--muted-2);
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: .09em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .info-cell b {
+    display: block;
+    overflow: hidden;
+    margin-top: 3px;
+    color: #c8dde7;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .decoder-note {
+    margin-top: 12px;
+    color: var(--muted-2);
+    font-size: 10px;
+    line-height: 1.65;
+  }
+
+  .footer {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 14px 0 0;
+    color: #476171;
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: .055em;
+  }
+
+  .toast {
+    position: fixed;
+    z-index: 30;
+    bottom: 26px;
+    left: 50%;
+    max-width: min(460px, calc(100% - 32px));
+    padding: 10px 15px;
+    border: 1px solid rgba(44, 232, 178, .28);
+    border-radius: 3px;
+    color: #ccf6e8;
+    background: rgba(5, 18, 17, .96);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .48);
+    font-size: 11.5px;
+    line-height: 1.5;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 12px);
+    transition: opacity .2s, transform .2s;
+  }
+  .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+  .toast.is-error { border-color: rgba(255, 96, 119, .36); color: #ffd5db; background: rgba(24, 8, 12, .97); }
+
+  [hidden] { display: none !important; }
+
+  @media (max-width: 680px) {
+    .page-wrap { width: calc(100% - 28px); padding-top: 20px; }
+    .simple-head { padding-bottom: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+    .brand-mark { width: 40px; height: 40px; flex-basis: 40px; }
+    .brand-sub { display: none; }
+    .info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .panel-head, .panel-body { padding-left: 15px; padding-right: 15px; }
+    .panel-head { padding-top: 17px; padding-bottom: 14px; }
+    .panel-body { padding-top: 16px; padding-bottom: 17px; }
+    .screen-hud { font-size: 7.5px; }
+    .footer { flex-direction: column; align-items: flex-start; gap: 5px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+  }
+
+  .rotate-group {
+    display: flex;
+    gap: 4px;
+  }
+  .rotate-btn {
+    background: transparent;
+    border: 1px solid rgba(120, 200, 170, 0.25);
+    color: var(--muted-2);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0;
+    line-height: 1.2;
+    transition: all .15s ease;
+  }
+  .rotate-btn:hover { border-color: rgba(120, 200, 170, 0.55); color: var(--accent); }
+  .rotate-btn.is-active { border-color: var(--accent); color: var(--accent); }
+  .screen-inner {
+    transform-origin: center center;
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  .screen-wrap[data-rot="90"] .screen-inner,
+  .screen-wrap[data-rot="270"] .screen-inner {
+    width: 100%;
+    height: 100%;
+  }
+  .screen-wrap[data-rot="90"] .screen-inner { transform: rotate(90deg); }
+  .screen-wrap[data-rot="180"] .screen-inner { transform: rotate(180deg); }
+  .screen-wrap[data-rot="270"] .screen-inner { transform: rotate(270deg); }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <header class="simple-head">
+    <div class="brand">
+      <div class="brand-mark">SV</div>
+      <div>
+        <h1>SVBF <span>PLAYER</span></h1>
+        <p class="brand-sub">纯解码终端 · 仅负责回放</p>
+      </div>
+    </div>
+    <div class="offline-chip"><span class="pulse-dot"></span>OFFLINE ONLY</div>
+  </header>
+
+  <section class="panel decoder" aria-labelledby="decoderTitle">
+    <div class="panel-head">
+      <div>
+        <span class="kicker">PLAYBACK</span>
+        <h2 id="decoderTitle">SVBF 安全回放</h2>
+      </div>
+      <span class="head-tag" id="playerBadge">NO FILE</span>
+    </div>
+
+    <div class="panel-body">
+      <div class="viewer">
+        <div class="viewer-top">
+          <div class="channel-label"><span class="rec-dot"></span>CH-01 <b>SVBF DECODER</b></div>
+          <div class="rotate-group">
+            <button class="rotate-btn" data-rot="0" type="button" title="0°">↺0</button>
+            <button class="rotate-btn" data-rot="90" type="button" title="90°">↻90</button>
+            <button class="rotate-btn" data-rot="180" type="button" title="180°">↻180</button>
+            <button class="rotate-btn" data-rot="270" type="button" title="270°">↻270</button>
+          </div>
+          <div class="signal-text" id="signalText">STANDBY</div>
+        </div>
+
+        <div class="screen-wrap" id="screenWrap">
+          <div class="screen-inner" id="screenInner">
+          <canvas id="screen" width="320" height="240" aria-label="SVBF 视频画面"></canvas>
+          <div class="scanlines" aria-hidden="true"></div>
+          <div class="screen-vignette" aria-hidden="true"></div>
+          <div class="screen-hud">
+            <span>TIME <b id="hudTime">--:--.--</b></span>
+            <span>FRAME <b id="hudFrame">----</b></span>
+            <span class="hud-sync" id="hudSync">LOCK OFF</span>
+          </div>
+          <div class="player-overlay" id="playerOverlay">
+            <div class="overlay-frame">
+              <div class="overlay-code" id="overlayCode">NO SIGNAL</div>
+              <div class="overlay-title" id="overlayTitle">等待 SVBF 信号</div>
+              <div class="overlay-sub" id="overlaySub">载入 .bin 文件后，按空格解锁音画播放</div>
+              <button class="unlock-btn" id="overlayAction" type="button">载入 .bin</button>
+            </div>
+          </div>
+          </div>
+
+        <div class="timeline"><div class="timeline-fill" id="timelineFill"></div></div>
+
+        <div class="viewer-foot">
+          <div class="key-hint"><kbd>SPACE</kbd><span>解锁 / 暂停 / 继续</span></div>
+          <div class="viewer-time" id="viewerTime">00:00.00 / 00:00.00</div>
+        </div>
+      </div>
+
+      <div class="decoder-tools">
+        <button class="btn btn-secondary" id="binPickBtn" type="button">载入 .bin</button>
+        <input type="file" id="binInput" accept=".bin,application/octet-stream" hidden>
+        <div class="bin-name" id="binName">未载入文件 · 亦可拖至画面</div>
+      </div>
+
+      <div class="info-grid" aria-label="SVBF 文件信息">
+        <div class="info-cell"><span>VIDEO FRAMES</span><b id="infoFrames">—</b></div>
+        <div class="info-cell"><span>VIDEO TIME</span><b id="infoVideoTime">—</b></div>
+        <div class="info-cell"><span>AUDIO TIME</span><b id="infoAudioTime">—</b></div>
+        <div class="info-cell"><span>SAMPLE RATE</span><b id="infoSampleRate">—</b></div>
+        <div class="info-cell"><span>FILE SIZE</span><b id="infoSize">—</b></div>
+        <div class="info-cell"><span>SYNC MODE</span><b id="infoSync">—</b></div>
+      </div>
+
+      <div class="decoder-note">
+        支持分辨率：160×120 / 320×240 / 480×320 / 640×480，从文件大小自动识别。首次播放必须按下空格以启用浏览器音频。解码与播放均在本地完成，无任何网络请求。
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span>SVBF v1 PLAYER · RGB565 + PCM · ALL BYTES XOR 0x6B</span>
+    <span>建议使用 Chrome 或 Edge 本地打开</span>
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  const KEY = 0x6B;
+  const DEFAULT_WIDTH = 320;
+  const DEFAULT_HEIGHT = 240;
+  const DEFAULT_FPS = 30;
+  const SAMPLE_RATE = 22050;
+  const HEADER_SIZE = 16;
+  const MAGIC = "SVBF";
+  const IS_LE = new Uint8Array(new Uint32Array([0x01020304]).buffer)[0] === 0x04;
+  const ALPHA32 = IS_LE ? 0xFF000000 : 0x000000FF;
+  const RGB32_MASK = IS_LE ? 0x00FFFFFF : 0xFFFFFF00;
+
+  // 解码器只需 frameBytes 来反推分辨率，fps 由音频反推
+  const RESOLUTION_OPTIONS = [
+    { width: 160,  height: 120 },
+    { width: 320,  height: 240 },
+    { width: 480,  height: 320 },
+    { width: 640,  height: 480 },
+    { width: 1280, height: 720 },
+    { width: 1920, height: 1080 },
+    { width: 3840, height: 2160 },
+    { width: 7680, height: 4320 }
+  ];
+
+  const $ = (id) => document.getElementById(id);
+
+  const screen = $("screen");
+  const screenWrap = $("screenWrap");
+  const screenCtx = screen.getContext("2d", { alpha: false });
+
+  let pixelImage = null;
+  let pixel32 = null;
+  let currentDecodeWidth = DEFAULT_WIDTH;
+  let currentDecodeHeight = DEFAULT_HEIGHT;
+
+  function setDecodeCanvas(width, height) {
+    currentDecodeWidth = width;
+    currentDecodeHeight = height;
+    screen.width = width;
+    screen.height = height;
+    pixelImage = screenCtx.createImageData(width, height);
+    pixel32 = new Uint32Array(pixelImage.data.buffer);
+  }
+  setDecodeCanvas(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+
+  function detectResolutionFromFrameBytes(frameBytes) {
+    const options = RESOLUTION_OPTIONS.map((o) => ({ ...o, frameBytes: o.width * o.height * 2 }));
+    for (const opt of options) {
+      if (opt.frameBytes === frameBytes) return opt;
+    }
+    let best = options[0], bestDiff = Math.abs(best.frameBytes - frameBytes);
+    for (let i = 1; i < options.length; i++) {
+      const d = Math.abs(options[i].frameBytes - frameBytes);
+      if (d < bestDiff) { bestDiff = d; best = options[i]; }
+    }
+    return { width: best.width, height: best.height, frameBytes };
+  }
+
+  const playerOverlay = $("playerOverlay");
+  const overlayCode = $("overlayCode");
+  const overlayTitle = $("overlayTitle");
+  const overlaySub = $("overlaySub");
+  const overlayAction = $("overlayAction");
+  const playerBadge = $("playerBadge");
+  const signalText = $("signalText");
+  const hudTime = $("hudTime");
+  const hudFrame = $("hudFrame");
+  const hudSync = $("hudSync");
+  const timelineFill = $("timelineFill");
+  const viewerTime = $("viewerTime");
+  const binPickBtn = $("binPickBtn");
+  const binInput = $("binInput");
+  const binName = $("binName");
+  const infoFrames = $("infoFrames");
+  const infoVideoTime = $("infoVideoTime");
+  const infoAudioTime = $("infoAudioTime");
+  const infoSampleRate = $("infoSampleRate");
+  const infoSize = $("infoSize");
+  const infoSync = $("infoSync");
+  const toastEl = $("toast");
+
+  const lookup = new Uint32Array(65536);
+  for (let value = 0; value < 65536; value++) {
+    const r5 = (value >> 11) & 0x1F;
+    const g6 = (value >> 5) & 0x3F;
+    const b5 = value & 0x1F;
+    const r = (r5 << 3) | (r5 >> 2);
+    const g = (g6 << 2) | (g6 >> 4);
+    const b = (b5 << 3) | (b5 >> 2);
+    lookup[value] = IS_LE
+      ? ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0
+      : ((r << 24) | (g << 16) | (b << 8) | 255) >>> 0;
+  }
+
+  let toastTimer = 0;
+  let decoder = null;
+  let loadToken = 0;
+  let audioCtx = null;
+  let gainNode = null;
+  let sourceNode = null;
+  let rafId = 0;
+  let staticTimer = 0;
+  let staticToHexTimer = 0;
+  let hexTimer = 0;
+  let hexLines = [];
+  let hexScrollLine = 0;
+  let hexStartTime = 0;
+  let noiseSeed = (Date.now() ^ 0x9E3779B9) >>> 0;
+  let playbackStartCtxTime = 0;
+  let playbackOffsetBase = 0;
+  let pausedAt = 0;
+  let lastDrawnFrame = -1;
+  let overlayMode = "pick";
+  let rotState = 0; // 0, 90, 180, 270
+
+  function setRotation(deg) {
+    rotState = (deg + 360) % 360;
+    const wrap = document.getElementById("screenWrap");
+    if (wrap) {
+      wrap.setAttribute("data-rot", String(rotState));
+    }
+    document.querySelectorAll(".rotate-btn").forEach((b) => {
+      b.classList.toggle("is-active", Number(b.dataset.rot) === rotState);
+    });
+    try {
+      const orientMap = { 0: "portrait-primary", 90: "landscape-primary", 180: "portrait-secondary", 270: "landscape-secondary" };
+      if (screen.orientation && typeof screen.orientation.lock === "function") {
+        const p = screen.orientation.lock(orientMap[rotState]);
+        if (p && typeof p.catch === "function") { p.catch(() => {}); }
+      }
+    } catch {}
+  }
+  document.querySelectorAll(".rotate-btn").forEach((b) => {
+    b.addEventListener("click", () => setRotation(Number(b.dataset.rot)));
+  });
+
+  function showToast(message, isError = false) {
+    toastEl.textContent = message;
+    toastEl.classList.toggle("is-error", isError);
+    toastEl.classList.add("is-visible");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("is-visible"), 2600);
+  }
+
+  function formatBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 0) return "—";
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ["KB", "MB", "GB", "TB"];
+    let value = bytes / 1024;
+    let index = 0;
+    while (value >= 1024 && index < units.length - 1) { value /= 1024; index++; }
+    return `${value >= 100 ? value.toFixed(1) : value.toFixed(2)} ${units[index]}`;
+  }
+
+  function formatClock(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return "--:--.--";
+    const minutes = Math.floor(seconds / 60);
+    const secs = (seconds % 60).toFixed(2).padStart(5, "0");
+    return `${String(minutes).padStart(2, "0")}:${secs}`;
+  }
+
+  function formatDuration(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return "—";
+    const minutes = Math.floor(seconds / 60);
+    const secs = (seconds % 60).toFixed(1).padStart(4, "0");
+    return `${String(minutes).padStart(2, "0")}:${secs}`;
+  }
+
+  function random32() {
+    let x = noiseSeed;
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    noiseSeed = x >>> 0;
+    return noiseSeed;
+  }
+
+  function drawNoise() {
+    for (let i = 0; i < pixel32.length; i++) {
+      pixel32[i] = ALPHA32 | (random32() & RGB32_MASK);
+    }
+    screenCtx.putImageData(pixelImage, 0, 0);
+    if ((random32() & 3) === 0) {
+      const y = random32() % currentDecodeHeight;
+      const h = 1 + (random32() % 15);
+      const brightness = 60 + (random32() % 150);
+      screenCtx.fillStyle = `rgba(${brightness}, ${Math.min(255, brightness + 25)}, ${Math.min(255, brightness + 45)}, .22)`;
+      screenCtx.fillRect(0, y, currentDecodeWidth, h);
+    }
+  }
+
+  function startStatic() {
+    stopRaf();
+    stopHexDump();
+
+    if (!staticTimer) {
+      drawNoise();
+      staticTimer = window.setInterval(drawNoise, 72);
+    }
+
+    if (decoder && decoder.state === "ready") {
+      clearTimeout(staticToHexTimer);
+      staticToHexTimer = window.setTimeout(() => {
+        stopStatic();
+        startHexDump();
+      }, 3000);
+    }
+  }
+
+  function stopStatic() {
+    if (staticTimer) { clearInterval(staticTimer); staticTimer = 0; }
+    if (staticToHexTimer) { clearTimeout(staticToHexTimer); staticToHexTimer = 0; }
+  }
+
+  function stopRaf() { if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } }
+
+  function buildHexLines(bytes, maxLines) {
+    const lines = [];
+    const limit = Math.min(bytes.length, maxLines * 16);
+    const lineCount = Math.ceil(limit / 16);
+    const hexChars = "0123456789ABCDEF";
+    for (let li = 0; li < lineCount; li++) {
+      const offset = li * 16;
+      let hexStr = "";
+      let asciiStr = "";
+      for (let j = 0; j < 16; j++) {
+        const pos = offset + j;
+        if (pos < limit) {
+          const b = bytes[pos] ^ KEY;
+          hexStr += hexChars[(b >>> 4) & 0x0F] + hexChars[b & 0x0F] + " ";
+          asciiStr += (b >= 32 && b < 127) ? String.fromCharCode(b) : ".";
+        } else {
+          hexStr += "   ";
+          asciiStr += " ";
+        }
+      }
+      const offStr = String(offset).padStart(8, "0");
+      lines.push(`${offStr}  ${hexStr} ${asciiStr}`);
+    }
+    return lines;
+  }
+
+  function renderHexFrame() {
+    const w = currentDecodeWidth;
+    const h = currentDecodeHeight;
+
+    screenCtx.fillStyle = "#020a06";
+    screenCtx.fillRect(0, 0, w, h);
+
+    let fontSize = 7;
+    let lineHeight = 9;
+    if (w >= 480) { fontSize = 8; lineHeight = 11; }
+    if (w >= 640) { fontSize = 9; lineHeight = 12; }
+    const cols = Math.max(12, Math.floor(w / (fontSize * 6.2)));
+    const maxRows = Math.max(10, Math.floor(h / lineHeight));
+
+    screenCtx.font = `${fontSize}px "Cascadia Code", Consolas, monospace`;
+    screenCtx.fillStyle = "#2ce8b2";
+    screenCtx.textBaseline = "top";
+
+    const header = "SVBF SOURCE DUMP  |  XOR KEY 0x6B  |  " +
+      (decoder ? `${decoder.width}x${decoder.height} ${decoder.frameCount}f ${decoder.sampleRate}Hz` : "") +
+      "  |  PRESS SPACE TO UNLOCK";
+
+    const renderRows = [];
+    for (let i = 0; i < maxRows; i++) {
+      if (i === 0) {
+        renderRows.push(header.substring(0, cols));
+      } else {
+        const idx = hexScrollLine + (i - 1);
+        if (idx >= hexLines.length) {
+          renderRows.push(hexLines[idx % hexLines.length].substring(0, cols));
+        } else {
+          renderRows.push(hexLines[idx].substring(0, cols));
+        }
+      }
+    }
+
+    for (let i = 0; i < renderRows.length; i++) {
+      const y = 1 + i * lineHeight;
+      if (y + lineHeight > h) break;
+      if (i === 0) {
+        screenCtx.fillStyle = "#ffb45b";
+      } else {
+        const age = (i / renderRows.length);
+        const g = Math.floor(180 + age * 60);
+        const r = Math.floor(40 + age * 30);
+        screenCtx.fillStyle = `rgb(${r},${g},${Math.floor(130 - age * 50)})`;
+      }
+      screenCtx.fillText(renderRows[i], 2, y);
+    }
+  }
+
+  function startHexDump() {
+    if (hexTimer) return;
+    if (!decoder || !decoder.bytes) { startStatic(); return; }
+
+    const MAX_HEX_BYTES = 16 * 800;
+    hexLines = buildHexLines(decoder.bytes, Math.max(500, Math.min(decoder.bytes.length / 16, MAX_HEX_BYTES / 16)));
+    hexScrollLine = 0;
+    hexStartTime = Date.now();
+
+    setBadge("HEX DUMP", "warn");
+    signalText.textContent = "SOURCE ANALYSIS";
+    hudSync.textContent = "HEX VIEW";
+
+    renderHexFrame();
+    hexTimer = window.setInterval(() => {
+      if (!decoder) { stopHexDump(); return; }
+      hexScrollLine = (hexScrollLine + 1) % hexLines.length;
+      renderHexFrame();
+    }, 140);
+  }
+
+  function stopHexDump() {
+    if (hexTimer) { clearInterval(hexTimer); hexTimer = 0; }
+    hexLines = [];
+  }
+
+  function setOverlay(code, title, sub, actionLabel, mode) {
+    overlayCode.textContent = code;
+    overlayTitle.textContent = title;
+    overlaySub.textContent = sub;
+    overlayMode = mode || "none";
+    if (actionLabel) {
+      overlayAction.textContent = actionLabel;
+      overlayAction.classList.remove("is-hidden");
+    } else {
+      overlayAction.classList.add("is-hidden");
+    }
+    playerOverlay.classList.remove("is-hidden");
+  }
+  function hideOverlay() { playerOverlay.classList.add("is-hidden"); }
+
+  function setBadge(text, state = "") {
+    playerBadge.textContent = text;
+    playerBadge.style.color = state === "live" ? "var(--accent)" : state === "warn" ? "var(--warn)" : state === "error" ? "var(--red)" : "";
+    playerBadge.style.borderColor = state === "live" ? "rgba(44, 232, 178, .34)" : state === "warn" ? "rgba(255, 180, 91, .3)" : state === "error" ? "rgba(255, 96, 119, .32)" : "";
+  }
+
+  function resetInfo() {
+    infoFrames.textContent = "—"; infoVideoTime.textContent = "—"; infoAudioTime.textContent = "—";
+    infoSampleRate.textContent = "—"; infoSize.textContent = "—"; infoSync.textContent = "—";
+    hudTime.textContent = "--:--.--"; hudFrame.textContent = "----";
+    viewerTime.textContent = "00:00.00 / 00:00.00";
+    timelineFill.style.width = "0%";
+  }
+
+  function clearPlayback() {
+    stopRaf();
+    stopSource();
+    stopStatic();
+    stopHexDump();
+    lastDrawnFrame = -1;
+  }
+
+  function getAudioContext() {
+    if (!audioCtx) {
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) throw new Error("浏览器不支持 Web Audio");
+      audioCtx = new AudioCtor();
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = 0.9;
+      gainNode.connect(audioCtx.destination);
+    }
+    return audioCtx;
+  }
+
+  function stopSource() {
+    if (sourceNode) {
+      sourceNode.onended = null;
+      try { sourceNode.stop(); } catch (_) {}
+      try { sourceNode.disconnect(); } catch (_) {}
+      sourceNode = null;
+    }
+  }
+
+  function createAudioBuffer(bytes, pcmStart, audioBytes, sampleRate) {
+    const samples = audioBytes >>> 1;
+    let audioBuffer;
+    try {
+      audioBuffer = new AudioBuffer({ length: samples, numberOfChannels: 1, sampleRate });
+    } catch (_) {
+      const tempCtx = new OfflineAudioContext(1, 1, sampleRate);
+      audioBuffer = tempCtx.createBuffer(1, samples, sampleRate);
+    }
+    const channel = audioBuffer.getChannelData(0);
+    let sourceOffset = pcmStart;
+    for (let i = 0; i < samples; i++) {
+      const low = bytes[sourceOffset] ^ KEY;
+      const high = bytes[sourceOffset + 1] ^ KEY;
+      let value = low | (high << 8);
+      if (value & 0x8000) value -= 0x10000;
+      channel[i] = value / 32768;
+      sourceOffset += 2;
+    }
+    return audioBuffer;
+  }
+
+  function readUint32LE(bytes, offset) {
+    return (
+      (bytes[offset] ^ KEY) |
+      ((bytes[offset + 1] ^ KEY) << 8) |
+      ((bytes[offset + 2] ^ KEY) << 16) |
+      ((bytes[offset + 3] ^ KEY) << 24)
+    ) >>> 0;
+  }
+
+  async function loadBin(file) {
+    if (!file) return;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    const token = ++loadToken;
+    clearPlayback();
+    decoder = null;
+    startStatic();
+    resetInfo();
+    binName.textContent = `${file.name} · 读取中...`;
+    setBadge("READING", "warn");
+    signalText.textContent = "DECRYPTING";
+    hudSync.textContent = "LOCK OFF";
+    setOverlay("SYNCING", "正在解析容器", "校验 SVBF 文件头、视频流与 PCM 音频流", null, "none");
+
+    try {
+      const buffer = await file.arrayBuffer();
+      if (token !== loadToken) return;
+      const bytes = new Uint8Array(buffer);
+      if (bytes.length < HEADER_SIZE) throw new Error("文件过小，不是有效的 SVBF 容器");
+
+      const magic = String.fromCharCode(bytes[0] ^ KEY, bytes[1] ^ KEY, bytes[2] ^ KEY, bytes[3] ^ KEY);
+      if (magic !== MAGIC) throw new Error("文件头校验失败：缺少 SVBF 标识");
+
+      const frameCount = readUint32LE(bytes, 4);
+      const audioBytes = readUint32LE(bytes, 8);
+      const sampleRate = readUint32LE(bytes, 12);
+
+      if (frameCount === 0) throw new Error("视频帧数为 0");
+      if (audioBytes === 0 || (audioBytes & 1) !== 0) throw new Error("音频长度字段无效");
+      if (sampleRate < 8000 || sampleRate > 192000) throw new Error("采样率字段无效");
+
+      const videoBytesPerFrame = Math.floor((bytes.length - HEADER_SIZE - audioBytes) / frameCount);
+      const resolutionInfo = detectResolutionFromFrameBytes(videoBytesPerFrame);
+      const frameBytes = resolutionInfo.frameBytes;
+      const videoBytes = frameCount * frameBytes;
+      const expectedBytes = HEADER_SIZE + videoBytes + audioBytes;
+      if (!Number.isSafeInteger(videoBytes) || expectedBytes !== bytes.length) {
+        throw new Error(`文件长度不匹配：根据帧分辨率估算 ${expectedBytes} bytes，实际 ${bytes.length} bytes`);
+      }
+
+      setDecodeCanvas(resolutionInfo.width, resolutionInfo.height);
+
+      const pcmStart = HEADER_SIZE + videoBytes;
+      const audioBuffer = createAudioBuffer(bytes, pcmStart, audioBytes, sampleRate);
+      if (token !== loadToken) return;
+
+      // 从音频反推 fps —— header 不存 fps，靠 audioByteLength / (sampleRate*2) 算
+      const audioDuration = audioBuffer.duration;
+      const fps = audioDuration > 0
+        ? Math.max(1, Math.min(240, Math.round(frameCount / audioDuration)))
+        : DEFAULT_FPS;
+      const videoDuration = frameCount / fps;
+      const duration = Math.max(videoDuration, audioDuration);
+
+      decoder = {
+        file, bytes, frameCount, frameBytes,
+        width: resolutionInfo.width, height: resolutionInfo.height,
+        audioBytes, sampleRate, audioBuffer,
+        fps,
+        videoDuration, audioDuration, duration,
+        dataStart: HEADER_SIZE,
+        state: "ready"
+      };
+
+      pausedAt = 0; lastDrawnFrame = -1;
+      binName.textContent = `${file.name} · ${formatBytes(file.size)}`;
+      infoFrames.textContent = frameCount.toLocaleString("en-US");
+      infoVideoTime.textContent = formatDuration(videoDuration);
+      infoAudioTime.textContent = formatDuration(audioDuration);
+      infoSampleRate.textContent = `${sampleRate} Hz`;
+      infoSize.textContent = formatBytes(bytes.length);
+      infoSync.textContent = `${resolutionInfo.width}×${resolutionInfo.height} / ${fps} FPS`;
+      hudTime.textContent = "00:00.00"; hudFrame.textContent = "0000";
+      viewerTime.textContent = `00:00.00 / ${formatClock(duration)}`;
+      timelineFill.style.width = "0%";
+      hudSync.textContent = "SYNC READY";
+      setBadge("LOCKED", "warn");
+      signalText.textContent = `SIGNAL LOCKED · ${resolutionInfo.width}×${resolutionInfo.height} · ${fps}FPS`;
+      setOverlay(
+        "SIGNAL LOCKED",
+        "按空格解锁音画",
+        `${frameCount} 帧 · ${resolutionInfo.width}×${resolutionInfo.height} · ${fps}FPS · ${formatDuration(videoDuration)} · ${sampleRate}Hz PCM`,
+        "解锁播放  [SPACE]", "unlock"
+      );
+      startStatic();
+      showToast(`已载入 ${frameCount} 帧 / ${resolutionInfo.width}×${resolutionInfo.height} · ${fps} FPS / ${formatBytes(bytes.length)}`);
+    } catch (error) {
+      if (token !== loadToken) return;
+      console.error(error);
+      decoder = null;
+      binName.textContent = `${file.name} · 无效文件`;
+      resetInfo();
+      setBadge("ERROR", "error");
+      signalText.textContent = "DECODE ERROR";
+      hudSync.textContent = "LOCK OFF";
+      setOverlay("ERROR", "无法解析 SVBF", error.message || "文件格式错误", "重新选择", "pick");
+      startStatic();
+      showToast(error.message || "SVBF 解码失败", true);
+    }
+  }
+
+  function drawFrame(frameIndex) {
+    if (!decoder) return;
+    const frameBytes = decoder.frameBytes;
+    const start = decoder.dataStart + frameIndex * frameBytes;
+    const bytes = decoder.bytes;
+    for (let p = 0, i = 0; p < frameBytes; p += 2, i++) {
+      const value = (bytes[start + p] ^ KEY) | ((bytes[start + p + 1] ^ KEY) << 8);
+      pixel32[i] = lookup[value];
+    }
+    screenCtx.putImageData(pixelImage, 0, 0);
+    lastDrawnFrame = frameIndex;
+  }
+
+  function currentElapsed() {
+    if (!decoder || decoder.state !== "playing" || !audioCtx) return pausedAt;
+    return playbackOffsetBase + (audioCtx.currentTime - playbackStartCtxTime);
+  }
+
+  function updatePlaybackUI(elapsed) {
+    if (!decoder) return;
+    const safeElapsed = Math.min(Math.max(0, elapsed), decoder.duration);
+    hudTime.textContent = formatClock(safeElapsed);
+    const frame = Math.min(decoder.frameCount - 1, Math.floor(safeElapsed * decoder.fps));
+    hudFrame.textContent = String(Math.max(0, frame)).padStart(4, "0");
+    viewerTime.textContent = `${formatClock(safeElapsed)} / ${formatClock(decoder.duration)}`;
+    timelineFill.style.width = `${Math.min(100, (safeElapsed / decoder.duration) * 100)}%`;
+  }
+
+  function playbackTick() {
+    rafId = 0;
+    if (!decoder || decoder.state !== "playing") return;
+    const elapsed = currentElapsed();
+    if (elapsed >= decoder.duration) { finishPlayback(); return; }
+    const frame = Math.min(decoder.frameCount - 1, Math.max(0, Math.floor(elapsed * decoder.fps)));
+    if (frame !== lastDrawnFrame) drawFrame(frame);
+    updatePlaybackUI(elapsed);
+    rafId = requestAnimationFrame(playbackTick);
+  }
+
+  function scheduleSource(offset) {
+    if (!decoder || !audioCtx) return;
+    stopSource();
+    if (offset >= decoder.audioBuffer.duration) return;
+    const source = audioCtx.createBufferSource();
+    source.buffer = decoder.audioBuffer;
+    source.connect(gainNode);
+    sourceNode = source;
+    source.start(0, Math.max(0, offset));
+  }
+
+  async function playFrom(offset) {
+    if (!decoder) return;
+    const ctx = getAudioContext();
+    if (ctx.state !== "running") { await ctx.resume(); }
+    if (ctx.state !== "running") { throw new Error("浏览器未允许音频播放，请再次按空格"); }
+
+    stopStatic(); stopHexDump(); stopRaf();
+    pausedAt = offset;
+    playbackOffsetBase = offset;
+    playbackStartCtxTime = ctx.currentTime;
+    decoder.state = "playing";
+    scheduleSource(offset);
+
+    lastDrawnFrame = -1;
+    const frame = Math.min(decoder.frameCount - 1, Math.floor(offset * decoder.fps));
+    drawFrame(frame);
+    updatePlaybackUI(offset);
+
+    hideOverlay();
+    setBadge("LIVE", "live");
+    signalText.textContent = "PLAYING · A/V SYNC";
+    hudSync.textContent = "A/V LOCK";
+    rafId = requestAnimationFrame(playbackTick);
+  }
+
+  function pausePlayback() {
+    if (!decoder || decoder.state !== "playing") return;
+    const elapsed = Math.min(currentElapsed(), decoder.duration);
+    pausedAt = elapsed;
+    stopRaf(); stopSource();
+    decoder.state = "paused";
+    setBadge("PAUSED", "warn");
+    signalText.textContent = "HOLD";
+    hudSync.textContent = "PAUSED";
+    const frame = Math.min(decoder.frameCount - 1, Math.floor(elapsed * decoder.fps));
+    drawFrame(frame);
+    updatePlaybackUI(elapsed);
+    setOverlay("STREAM PAUSED", "音画已暂停", `已播放至 ${formatClock(elapsed)}`, "继续播放  [SPACE]", "resume");
+  }
+
+  async function resumePlayback() {
+    if (!decoder || decoder.state !== "paused") return;
+    await playFrom(pausedAt);
+  }
+
+  function finishPlayback() {
+    if (!decoder) return;
+    stopRaf(); stopSource();
+    decoder.state = "ended";
+    pausedAt = decoder.duration;
+    updatePlaybackUI(decoder.duration);
+    startHexDump();
+    setBadge("END", "warn");
+    signalText.textContent = "STREAM END · SOURCE DUMP";
+    hudSync.textContent = "HEX VIEW";
+    setOverlay("END OF STREAM", "播放结束，已返回源码视图", "按空格从头重播", "重新播放  [SPACE]", "replay");
+  }
+
+  async function handleSpace() {
+    if (!decoder) { showToast("请先载入 SVBF .bin 文件"); return; }
+    try {
+      if (decoder.state === "ready" || decoder.state === "ended") { await playFrom(0); }
+      else if (decoder.state === "playing") { pausePlayback(); }
+      else if (decoder.state === "paused") { await resumePlayback(); }
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || "播放失败", true);
+    }
+  }
+
+  overlayAction.addEventListener("click", () => {
+    if (overlayMode === "pick") { binInput.click(); }
+    else { handleSpace(); }
+  });
+
+  binPickBtn.addEventListener("click", () => binInput.click());
+  binInput.addEventListener("change", () => {
+    const file = binInput.files && binInput.files[0];
+    if (file) loadBin(file);
+    binInput.value = "";
+  });
+
+  ["dragenter", "dragover"].forEach((name) => {
+    screenWrap.addEventListener(name, (event) => {
+      event.preventDefault();
+      screenWrap.classList.add("is-drag");
+    });
+  });
+  ["dragleave", "drop"].forEach((name) => {
+    screenWrap.addEventListener(name, (event) => {
+      event.preventDefault();
+      screenWrap.classList.remove("is-drag");
+    });
+  });
+  screenWrap.addEventListener("drop", (event) => {
+    const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+    if (file) loadBin(file);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.defaultPrevented) return;
+    if (event.code !== "Space" && event.key !== " ") return;
+    const target = event.target;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) return;
+    event.preventDefault();
+    if (event.repeat) return;
+    handleSpace();
+  });
+
+  startStatic();
+  resetInfo();
+  setBadge("NO FILE", "");
+})();
+</script>
+</body>
+</html>
+

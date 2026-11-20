@@ -1,0 +1,2678 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>SVBF Toolkit · 私有媒体容器</title>
+<style>
+  :root {
+    --bg: #05080b;
+    --bg-2: #071019;
+    --panel: rgba(9, 17, 24, .94);
+    --panel-2: #0b151e;
+    --line: #172a37;
+    --line-bright: #244658;
+    --text: #d9e8ef;
+    --muted: #6f8999;
+    --muted-2: #4d6675;
+    --accent: #2ce8b2;
+    --accent-dim: rgba(44, 232, 178, .12);
+    --blue: #59b7ff;
+    --warn: #ffb45b;
+    --red: #ff6077;
+    --mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    --sans: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { min-height: 100%; background: var(--bg); }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+    color: var(--text);
+    background:
+      radial-gradient(circle at 12% -8%, rgba(32, 174, 143, .14), transparent 34%),
+      radial-gradient(circle at 92% 4%, rgba(44, 111, 198, .11), transparent 30%),
+      linear-gradient(180deg, #071018 0%, var(--bg) 42%, #04070a 100%);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: .26;
+    background-image:
+      linear-gradient(rgba(56, 112, 132, .11) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 112, 132, .11) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.35) 55%, transparent 100%);
+  }
+
+  button, input { font: inherit; }
+  button, a { -webkit-tap-highlight-color: transparent; }
+  button { color: inherit; }
+  a { color: inherit; }
+  svg { display: block; }
+
+  .topbar {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    width: min(1520px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: 26px 0 22px;
+    border-bottom: 1px solid rgba(40, 74, 92, .5);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .brand-mark {
+    position: relative;
+    display: grid;
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
+    place-items: center;
+    border: 1px solid var(--accent);
+    border-radius: 5px;
+    color: var(--accent);
+    background: linear-gradient(145deg, rgba(44, 232, 178, .14), rgba(44, 232, 178, .02));
+    box-shadow: inset 0 0 18px rgba(44, 232, 178, .07), 0 0 24px rgba(44, 232, 178, .08);
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -.08em;
+  }
+
+  .brand-mark::before,
+  .brand-mark::after {
+    content: "";
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-color: var(--accent);
+    opacity: .75;
+  }
+
+  .brand-mark::before {
+    top: -1px;
+    left: -1px;
+    border-top: 2px solid;
+    border-left: 2px solid;
+  }
+
+  .brand-mark::after {
+    right: -1px;
+    bottom: -1px;
+    border-right: 2px solid;
+    border-bottom: 2px solid;
+  }
+
+  .brand-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: clamp(19px, 2vw, 25px);
+    font-weight: 650;
+    letter-spacing: .12em;
+    line-height: 1.1;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .build-tag {
+    padding: 2px 6px;
+    border: 1px solid rgba(89, 183, 255, .34);
+    border-radius: 3px;
+    color: var(--blue);
+    background: rgba(89, 183, 255, .06);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .14em;
+  }
+
+  .brand p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 11.5px;
+    letter-spacing: .08em;
+  }
+
+  .top-meta {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-shrink: 0;
+  }
+
+  .offline-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 1px solid rgba(44, 232, 178, .2);
+    border-radius: 3px;
+    color: var(--accent);
+    background: rgba(44, 232, 178, .045);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+  }
+
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 0 rgba(44, 232, 178, .45);
+    animation: pulse 2.3s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(44, 232, 178, .4); }
+    55% { box-shadow: 0 0 0 6px rgba(44, 232, 178, 0); }
+  }
+
+  .top-spec {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .07em;
+  }
+
+  .workspace {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, .94fr) minmax(0, 1.06fr);
+    align-items: start;
+    gap: 18px;
+    width: min(1520px, calc(100% - 48px));
+    margin: 22px auto 0;
+  }
+
+  .panel {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background:
+      linear-gradient(145deg, rgba(14, 27, 37, .78), rgba(6, 12, 18, .94) 42%),
+      var(--panel);
+    box-shadow: 0 20px 70px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .025);
+  }
+
+  .panel::before,
+  .panel::after {
+    content: "";
+    position: absolute;
+    z-index: 3;
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+  }
+
+  .panel::before {
+    top: -1px;
+    left: -1px;
+    border-top: 1px solid var(--line-bright);
+    border-left: 1px solid var(--line-bright);
+  }
+
+  .panel::after {
+    right: -1px;
+    bottom: -1px;
+    border-right: 1px solid var(--line-bright);
+    border-bottom: 1px solid var(--line-bright);
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 20px 22px 17px;
+    border-bottom: 1px solid rgba(26, 49, 63, .7);
+  }
+
+  .kicker {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .18em;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: .03em;
+  }
+
+  .head-tag {
+    flex-shrink: 0;
+    margin-top: 3px;
+    padding: 4px 8px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .018);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .1em;
+    white-space: nowrap;
+  }
+
+  .panel-body { padding: 20px 22px 22px; }
+
+  .dropzone {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 150px;
+    padding: 24px 18px;
+    border: 1px dashed #274250;
+    border-radius: 5px;
+    outline: none;
+    background:
+      linear-gradient(180deg, rgba(22, 48, 57, .09), rgba(4, 9, 13, .16));
+    cursor: pointer;
+    transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;
+  }
+
+  .dropzone:hover,
+  .dropzone:focus-visible,
+  .dropzone.is-drag {
+    border-color: rgba(44, 232, 178, .72);
+    background: rgba(44, 232, 178, .035);
+    box-shadow: inset 0 0 36px rgba(44, 232, 178, .035);
+  }
+
+  .dropzone.is-drag { transform: translateY(-1px); }
+
+  .dropzone[aria-disabled="true"] {
+    pointer-events: none;
+    opacity: .55;
+  }
+
+  .drop-icon {
+    width: 34px;
+    height: 34px;
+    margin-bottom: 12px;
+    color: var(--accent);
+    opacity: .9;
+  }
+
+  .drop-title {
+    font-size: 14.5px;
+    font-weight: 550;
+    letter-spacing: .03em;
+  }
+
+  .drop-sub {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+
+  .file-strip {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 11px 12px;
+    border: 1px solid rgba(39, 69, 84, .65);
+    border-radius: 4px;
+    background: rgba(9, 21, 29, .72);
+  }
+
+  .file-badge {
+    display: grid;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 1px solid rgba(89, 183, 255, .26);
+    border-radius: 3px;
+    color: var(--blue);
+    background: rgba(89, 183, 255, .06);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .05em;
+  }
+
+  .file-detail { min-width: 0; flex: 1; }
+
+  .file-name {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 12.5px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-meta {
+    overflow: hidden;
+    margin-top: 2px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .icon-btn {
+    flex: 0 0 auto;
+    padding: 5px 7px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    color: var(--muted);
+    background: transparent;
+    font-family: var(--mono);
+    font-size: 10px;
+    cursor: pointer;
+  }
+
+  .icon-btn:hover { border-color: var(--line); color: var(--text); background: rgba(255,255,255,.03); }
+
+  .tag-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin: 16px 0 18px;
+  }
+
+  .tag-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid rgba(30, 55, 69, .66);
+    border-radius: 3px;
+    background: rgba(255, 255, 255, .014);
+    color: #a8bdc9;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .025em;
+  }
+
+  .tag-card::before {
+    content: "";
+    flex: 0 0 4px;
+    width: 4px;
+    height: 4px;
+    border-radius: 1px;
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(44, 232, 178, .5);
+  }
+
+  .resolution-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0 14px;
+    padding: 9px 12px;
+    border: 1px solid rgba(29, 53, 66, .72);
+    border-radius: 4px;
+    background: linear-gradient(180deg, rgba(15, 29, 39, .75), rgba(5, 11, 16, .6));
+  }
+
+  .resolution-label {
+    flex-shrink: 0;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .08em;
+  }
+
+  .resolution-select {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    padding: 0 26px 0 10px;
+    border: 1px solid rgba(52, 102, 132, .6);
+    border-radius: 3px;
+    color: #dfecef;
+    background-color: #0c1d29;
+    background-image:
+      linear-gradient(45deg, transparent 50%, #7aa2b3 50%),
+      linear-gradient(135deg, #7aa2b3 50%, transparent 50%);
+    background-position: calc(100% - 10px) calc(50% - 2px), calc(100% - 5px) calc(50% - 2px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .04em;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+  }
+
+  .resolution-select option { background: #0c1d29; color: #dfecef; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 41px;
+    padding: 10px 16px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    font-size: 12.5px;
+    font-weight: 550;
+    letter-spacing: .04em;
+    cursor: pointer;
+    transition: background .18s, border-color .18s, color .18s, opacity .18s, box-shadow .18s;
+  }
+
+  .btn:disabled { cursor: not-allowed; opacity: .38; }
+
+  .btn-primary {
+    width: 100%;
+    border-color: rgba(44, 232, 178, .48);
+    color: #04110d;
+    background: linear-gradient(180deg, #4df0c3, #20c99a);
+    box-shadow: 0 0 22px rgba(44, 232, 178, .12), inset 0 1px rgba(255, 255, 255, .42);
+  }
+
+  .btn-primary:not(:disabled):hover {
+    background: linear-gradient(180deg, #6ff7d3, #2bd8a6);
+    box-shadow: 0 0 30px rgba(44, 232, 178, .2), inset 0 1px rgba(255, 255, 255, .48);
+  }
+
+  .btn-primary .arrow { font-family: var(--mono); font-size: 16px; line-height: 1; }
+
+  .btn-secondary {
+    border-color: var(--line-bright);
+    color: #c6dae5;
+    background: rgba(30, 56, 70, .26);
+  }
+
+  .btn-secondary:not(:disabled):hover { border-color: #35637a; background: rgba(43, 81, 98, .3); }
+
+  .progress-box {
+    margin-top: 16px;
+    padding: 13px 14px;
+    border: 1px solid rgba(32, 59, 73, .74);
+    border-radius: 4px;
+    background: rgba(4, 10, 14, .52);
+  }
+
+  .progress-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 9px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+  }
+
+  .progress-head span:first-child { color: #b9d0dc; }
+  .progress-pct { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  .progress-track {
+    height: 4px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #142530;
+  }
+
+  .progress-fill {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #1a9b7b, var(--accent), #a8ffe4);
+    box-shadow: 0 0 12px rgba(44, 232, 178, .34);
+    transition: width .22s ease;
+  }
+
+  .progress-box.is-error .progress-fill { background: var(--red); box-shadow: 0 0 12px rgba(255, 96, 119, .3); }
+
+  .progress-detail {
+    margin-top: 8px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .02em;
+  }
+
+  .result-box {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid rgba(44, 232, 178, .3);
+    border-radius: 4px;
+    background:
+      linear-gradient(135deg, rgba(44, 232, 178, .07), rgba(44, 232, 178, .012) 58%),
+      #07130f;
+  }
+
+  .result-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 5px;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .13em;
+  }
+
+  .result-name {
+    overflow: hidden;
+    margin-bottom: 9px;
+    color: #e5f6ef;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .result-meta {
+    margin-bottom: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    line-height: 1.7;
+  }
+
+  .download-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    border: 1px solid rgba(44, 232, 178, .32);
+    border-radius: 3px;
+    color: var(--accent);
+    background: rgba(44, 232, 178, .07);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .09em;
+    text-decoration: none;
+    transition: background .18s, border-color .18s;
+  }
+
+  .download-link:hover { border-color: rgba(44, 232, 178, .58); background: rgba(44, 232, 178, .12); }
+
+  .auth-input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: var(--bg-soft);
+    border: 1px solid rgba(44, 232, 178, .25);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  .auth-input::placeholder {
+    color: var(--muted);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 11px;
+  }
+  .auth-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(44, 232, 178, .18);
+    background: rgba(44, 232, 178, .04);
+  }
+  .auth-input.is-error { border-color: var(--red); box-shadow: 0 0 0 2px rgba(255,96,119,.18); }
+
+  .auth-download-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px 18px;
+    font-size: 12.5px;
+    letter-spacing: 1px;
+  }
+
+  details.format-spec {
+    margin-top: 16px;
+    border-top: 1px solid rgba(27, 48, 61, .72);
+    padding-top: 13px;
+  }
+
+  details.format-spec summary {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .1em;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+
+  details.format-spec summary::-webkit-details-marker { display: none; }
+
+  details.format-spec summary::before {
+    content: "+";
+    display: inline-block;
+    width: 14px;
+    color: var(--accent);
+  }
+
+  details.format-spec[open] summary::before { content: "−"; }
+
+  .format-code {
+    margin: 11px 0 1px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    border: 1px solid rgba(29, 53, 66, .7);
+    border-radius: 3px;
+    color: #7fa0b1;
+    background: rgba(2, 7, 10, .44);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    line-height: 1.75;
+    white-space: pre;
+  }
+
+  .format-code b { color: #b8d2df; font-weight: 500; }
+
+  /* decoder */
+  .decoder .panel-body { padding-top: 18px; }
+
+  .viewer {
+    overflow: hidden;
+    border: 1px solid #1b3442;
+    border-radius: 5px;
+    background: #020507;
+    box-shadow: inset 0 0 60px rgba(0, 0, 0, .7);
+  }
+
+  .viewer-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 34px;
+    padding: 0 12px;
+    border-bottom: 1px solid rgba(27, 52, 65, .74);
+    background: rgba(11, 23, 31, .88);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .11em;
+  }
+
+  .channel-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--muted);
+  }
+
+  .channel-label b { color: #b6cfdb; font-weight: 500; }
+
+  .rec-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 8px rgba(255, 96, 119, .7);
+  }
+
+  .signal-text { color: var(--muted-2); }
+
+  .screen-wrap {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #000;
+    isolation: isolate;
+  }
+
+  .screen-wrap.is-drag { outline: 1px solid var(--accent); outline-offset: -5px; }
+
+  #screen {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    image-rendering: pixelated;
+    background: #000;
+  }
+
+  .scanlines {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    opacity: .16;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0) 0,
+      rgba(0, 0, 0, 0) 2px,
+      rgba(0, 0, 0, .34) 3px,
+      rgba(0, 0, 0, .34) 4px
+    );
+    mix-blend-mode: multiply;
+  }
+
+  .screen-vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 52%, rgba(0, 0, 0, .3) 100%);
+  }
+
+  .screen-hud {
+    position: absolute;
+    right: 10px;
+    bottom: 9px;
+    left: 10px;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: rgba(198, 228, 235, .72);
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: .08em;
+    text-shadow: 0 1px 2px #000, 0 0 5px #000;
+    pointer-events: none;
+  }
+
+  .screen-hud b {
+    color: rgba(222, 248, 245, .94);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hud-sync { color: rgba(44, 232, 178, .85) !important; }
+
+  .player-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+      radial-gradient(ellipse at center, rgba(2, 8, 10, .34) 0%, rgba(2, 6, 8, .68) 72%, rgba(2, 4, 6, .82) 100%);
+    transition: opacity .22s ease, visibility .22s;
+  }
+
+  .player-overlay.is-hidden {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .overlay-frame {
+    width: min(330px, 100%);
+    padding: 19px 20px 18px;
+    border-top: 1px solid rgba(44, 232, 178, .48);
+    border-bottom: 1px solid rgba(44, 232, 178, .16);
+    background: linear-gradient(90deg, rgba(2, 10, 10, .74), rgba(4, 16, 16, .55), rgba(2, 10, 10, .74));
+    text-align: center;
+    backdrop-filter: blur(2px);
+  }
+
+  .overlay-code {
+    margin-bottom: 7px;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: .2em;
+    text-shadow: 0 0 12px rgba(44, 232, 178, .45);
+  }
+
+  .overlay-title {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    line-height: 1.45;
+  }
+
+  .overlay-sub {
+    margin-top: 5px;
+    color: #829b9f;
+    font-size: 11px;
+    line-height: 1.55;
+  }
+
+  .unlock-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 34px;
+    margin-top: 14px;
+    padding: 6px 13px;
+    border: 1px solid rgba(44, 232, 178, .38);
+    border-radius: 3px;
+    color: #b7ffe8;
+    background: rgba(44, 232, 178, .08);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .06em;
+    cursor: pointer;
+    transition: border-color .16s, background .16s;
+  }
+
+  .unlock-btn:hover { border-color: rgba(44, 232, 178, .72); background: rgba(44, 232, 178, .14); }
+
+  .unlock-btn kbd {
+    padding: 1px 5px;
+    border: 1px solid rgba(44, 232, 178, .38);
+    border-radius: 2px;
+    color: var(--accent);
+    background: rgba(0, 0, 0, .3);
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: .06em;
+  }
+
+  .unlock-btn.is-hidden { display: none; }
+
+  .timeline {
+    height: 2px;
+    background: #10202a;
+  }
+
+  .timeline-fill {
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #1c9a7a, var(--accent));
+    box-shadow: 0 0 8px rgba(44, 232, 178, .4);
+    transition: width .1s linear;
+  }
+
+  .viewer-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-height: 34px;
+    padding: 7px 12px;
+    border-top: 1px solid rgba(25, 47, 60, .8);
+    background: rgba(9, 19, 26, .86);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .04em;
+  }
+
+  .key-hint {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--muted);
+  }
+
+  .key-hint kbd {
+    padding: 2px 6px;
+    border: 1px solid #2a4655;
+    border-bottom-color: #3a5d6e;
+    border-radius: 2px;
+    color: #acc6d2;
+    background: #0e1c25;
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: .06em;
+  }
+
+  .viewer-time {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .decoder-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .decoder-tools .btn { flex: 0 0 auto; min-height: 36px; padding: 7px 12px; font-size: 11px; }
+
+  .bin-name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    margin-top: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(29, 53, 66, .7);
+    border-radius: 3px;
+    background: rgba(29, 53, 66, .7);
+  }
+
+  .info-cell {
+    min-width: 0;
+    padding: 10px 11px;
+    background: #08121a;
+  }
+
+  .info-cell span {
+    display: block;
+    overflow: hidden;
+    color: var(--muted-2);
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: .09em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .info-cell b {
+    display: block;
+    overflow: hidden;
+    margin-top: 3px;
+    color: #c8dde7;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .decoder-note {
+    margin-top: 12px;
+    color: var(--muted-2);
+    font-size: 10px;
+    line-height: 1.65;
+  }
+
+  .footer {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    width: min(1520px, calc(100% - 48px));
+    margin: 20px auto 0;
+    padding: 12px 0 24px;
+    color: #476171;
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: .055em;
+  }
+
+  .toast {
+    position: fixed;
+    z-index: 30;
+    bottom: 26px;
+    left: 50%;
+    max-width: min(460px, calc(100% - 32px));
+    padding: 10px 15px;
+    border: 1px solid rgba(44, 232, 178, .28);
+    border-radius: 3px;
+    color: #ccf6e8;
+    background: rgba(5, 18, 17, .96);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .48);
+    font-size: 11.5px;
+    line-height: 1.5;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 12px);
+    transition: opacity .2s, transform .2s;
+  }
+
+  .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+  .toast.is-error { border-color: rgba(255, 96, 119, .36); color: #ffd5db; background: rgba(24, 8, 12, .97); }
+
+  .hidden { display: none !important; }
+
+  [hidden] { display: none !important; }
+
+  @media (max-width: 1080px) {
+    .workspace { grid-template-columns: minmax(0, 1fr); }
+    .decoder { order: 2; }
+    .encoder { order: 1; }
+    .top-spec { display: none; }
+    .screen-wrap { max-height: none; }
+  }
+
+  @media (max-width: 430px) {
+    .offline-chip { display: none; }
+    .top-meta { gap: 0; }
+  }
+
+  @media (max-width: 680px) {
+    .topbar {
+      width: calc(100% - 28px);
+      padding: 18px 0 16px;
+    }
+
+    .brand-mark { width: 42px; height: 42px; flex-basis: 42px; }
+    .brand p { display: none; }
+    .offline-chip { padding: 6px 8px; font-size: 8.5px; }
+    .build-tag { display: none; }
+
+    .workspace {
+      width: calc(100% - 28px);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .panel-head, .panel-body { padding-left: 15px; padding-right: 15px; }
+    .panel-head { padding-top: 17px; padding-bottom: 14px; }
+    .panel-body { padding-top: 16px; padding-bottom: 17px; }
+
+    .tag-grid { grid-template-columns: 1fr; gap: 6px; }
+    .info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .screen-hud { font-size: 7.5px; }
+    .viewer-foot { padding-left: 9px; padding-right: 9px; }
+    .key-hint span { display: none; }
+    .footer { width: calc(100% - 28px); flex-direction: column; align-items: flex-start; gap: 5px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+  }
+
+  .rotate-group { display: flex; gap: 4px; }
+  .rotate-btn {
+    background: transparent;
+    border: 1px solid rgba(120, 200, 170, 0.25);
+    color: var(--muted-2);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0;
+    line-height: 1.2;
+    transition: all .15s ease;
+  }
+  .rotate-btn:hover { border-color: rgba(120, 200, 170, 0.55); color: var(--accent); }
+  .rotate-btn.is-active { border-color: var(--accent); color: var(--accent); }
+  .screen-inner {
+    transform-origin: center center;
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    display: block; position: relative;
+    width: 100%; height: 100%;
+  }
+  .screen-wrap[data-rot="90"] .screen-inner { transform: rotate(90deg); }
+  .screen-wrap[data-rot="180"] .screen-inner { transform: rotate(180deg); }
+  .screen-wrap[data-rot="270"] .screen-inner { transform: rotate(270deg); }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">SV</div>
+    <div>
+      <div class="brand-line">
+        <h1>SVBF <span>TOOLKIT</span></h1>
+        <span class="build-tag">LOCAL BUILD</span>
+      </div>
+      <p>私有视频容器 · 纯前端编解码终端</p>
+    </div>
+  </div>
+  <div class="top-meta">
+    <div class="offline-chip"><span class="pulse-dot"></span>OFFLINE ONLY</div>
+    <div class="top-spec">RGB565 / 30FPS / 22.05kHz / XOR 6B</div>
+  </div>
+</header>
+
+<main class="workspace">
+  <section class="panel encoder" aria-labelledby="encoderTitle">
+    <div class="panel-head">
+      <div>
+        <span class="kicker">01 / ENCODE</span>
+        <h2 id="encoderTitle">MP4 打包转换</h2>
+      </div>
+      <span class="head-tag">VIDEO → SVBF</span>
+    </div>
+
+    <div class="panel-body">
+      <div class="dropzone" id="videoDrop" role="button" tabindex="0" aria-label="选择或拖入 MP4 文件">
+        <input type="file" id="videoInput" accept="video/mp4,video/*,.mp4,.m4v,.mov" hidden>
+        <svg class="drop-icon" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M16 21V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M5 20v5.5A1.5 1.5 0 0 0 6.5 27h19a1.5 1.5 0 0 0 1.5-1.5V20" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        <div class="drop-title">拖入带音频的 MP4</div>
+        <div class="drop-sub">或点击选择文件 · 全程本地处理，不上传</div>
+      </div>
+
+      <div class="file-strip hidden" id="videoFileStrip">
+        <div class="file-badge">MP4</div>
+        <div class="file-detail">
+          <div class="file-name" id="videoFileName">—</div>
+          <div class="file-meta" id="videoFileMeta">读取元数据...</div>
+        </div>
+        <button class="icon-btn" id="clearVideoBtn" type="button">清除</button>
+      </div>
+
+      <div class="tag-grid" aria-label="输出规格">
+        <div class="tag-card">30 FPS 固定帧率</div>
+        <div class="tag-card">22050 Hz / PCM 16bit</div>
+        <div class="tag-card">MONO / RGB565 / XOR 0x6B</div>
+        <div class="tag-card" id="resolutionPreview">输出分辨率：320 × 240</div>
+      </div>
+
+      <label class="resolution-row" for="resolutionSelect">
+        <span class="resolution-label">输出清晰度</span>
+        <select class="resolution-select" id="resolutionSelect">
+          <option value="160x120">160 × 120 · 极小</option>
+          <option value="320x240" selected>320 × 240 · 标准</option>
+          <option value="480x320">480 × 320 · 中清</option>
+          <option value="640x480">640 × 480 · 高清</option>
+          <option value="1280x720">1280 × 720 · 720p</option>
+          <option value="1920x1080">1920 × 1080 · 1080p</option>
+          <option value="3840x2160">3840 × 2160 · 4K</option>
+          <option value="7680x4320">7680 × 4320 · 8K UHD</option>
+        </select>
+      </label>
+
+      <label class="resolution-row" for="encodeModeSelect">
+        <span class="resolution-label">打包模式</span>
+        <select class="resolution-select" id="encodeModeSelect">
+          <option value="pixel" selected>像素直打（轻量，无依赖）</option>
+          <option value="h265">硬件加速（VideoFrame，零依赖，更快）</option>
+        </select>
+      </label>
+
+      <button class="btn btn-primary" id="convertBtn" type="button" disabled>
+        <span id="convertBtnLabel">开始转换</span>
+        <span class="arrow" aria-hidden="true">→</span>
+      </button>
+
+      <div class="progress-box hidden" id="progressBox" aria-live="polite">
+        <div class="progress-head">
+          <span id="progressLabel">准备中</span>
+          <span class="progress-pct" id="progressPct">0%</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-detail" id="progressDetail">—</div>
+      </div>
+
+      <div class="result-box hidden" id="resultBox">
+        <div class="result-top">
+          <span>BUILD COMPLETE</span>
+          <span id="resultSize">—</span>
+        </div>
+        <div class="result-name" id="resultName">—</div>
+        <div class="result-meta" id="resultMeta">—</div>
+        <input class="auth-input" id="authInput" type="text" placeholder="激活码（16 字符，如 B3U3PVZKDMNGGV7D）— admin.html 生成，1 小时有效" maxlength="20" autocomplete="off" spellcheck="false">
+        <button class="btn btn-primary auth-download-btn" id="downloadBtn" type="button">下载 SVBF BIN</button>
+        <a class="download-link hidden" id="downloadLink" href="#" download></a>
+      </div>
+
+      <details class="format-spec">
+        <summary>容器布局 / FORMAT SPEC</summary>
+        <pre class="format-code"><b>0x00</b>  4    MAGIC "SVBF"
+<b>0x04</b>  4    frameCount       uint32 LE
+<b>0x08</b>  4    audioByteLength  uint32 LE
+<b>0x0C</b>  4    sampleRate       uint32 LE (22050)
+<b>0x10</b>  ...  video frames     RGB565 LE, 320×240, 30fps
+<b>...</b>  ...  audio PCM        s16 LE, mono, 22050Hz
+
+全部字节（含文件头）XOR 0x6B。
+单帧 153,600 bytes，视频码流约 4.6 MB/s。</pre>
+      </details>
+    </div>
+  </section>
+
+  <section class="panel decoder" aria-labelledby="decoderTitle">
+    <div class="panel-head">
+      <div>
+        <span class="kicker">02 / PLAYBACK</span>
+        <h2 id="decoderTitle">SVBF 安全回放</h2>
+      </div>
+      <span class="head-tag" id="playerBadge">NO FILE</span>
+    </div>
+
+    <div class="panel-body">
+      <div class="viewer">
+        <div class="viewer-top">
+          <div class="channel-label"><span class="rec-dot"></span>CH-01 <b>SVBF DECODER</b></div>
+          <div class="rotate-group">
+            <button class="rotate-btn" data-rot="0" type="button" title="0°">↺0</button>
+            <button class="rotate-btn" data-rot="90" type="button" title="90°">↻90</button>
+            <button class="rotate-btn" data-rot="180" type="button" title="180°">↻180</button>
+            <button class="rotate-btn" data-rot="270" type="button" title="270°">↻270</button>
+          </div>
+          <div class="signal-text" id="signalText">STANDBY</div>
+        </div>
+
+        <div class="screen-wrap" id="screenWrap">
+          <div class="screen-inner" id="screenInner">
+          <canvas id="screen" width="320" height="240" aria-label="SVBF 视频画面"></canvas>
+          <div class="scanlines" aria-hidden="true"></div>
+          <div class="screen-vignette" aria-hidden="true"></div>
+          <div class="screen-hud">
+            <span>TIME <b id="hudTime">--:--.--</b></span>
+            <span>FRAME <b id="hudFrame">----</b></span>
+            <span class="hud-sync" id="hudSync">LOCK OFF</span>
+          </div>
+
+          <div class="player-overlay" id="playerOverlay">
+            <div class="overlay-frame">
+              <div class="overlay-code" id="overlayCode">NO SIGNAL</div>
+              <div class="overlay-title" id="overlayTitle">等待 SVBF 信号</div>
+              <div class="overlay-sub" id="overlaySub">载入 .bin 文件后，按空格解锁音画播放</div>
+              <button class="unlock-btn" id="overlayAction" type="button">载入 .bin</button>
+            </div>
+          </div>
+          </div>
+
+        <div class="timeline"><div class="timeline-fill" id="timelineFill"></div></div>
+
+        <div class="viewer-foot">
+          <div class="key-hint"><kbd>SPACE</kbd><span>解锁 / 暂停 / 继续</span></div>
+          <div class="viewer-time" id="viewerTime">00:00.00 / 00:00.00</div>
+        </div>
+      </div>
+
+      <div class="decoder-tools">
+        <button class="btn btn-secondary" id="binPickBtn" type="button">载入 .bin</button>
+        <input type="file" id="binInput" accept=".bin,application/octet-stream" hidden>
+        <div class="bin-name" id="binName">未载入文件 · 亦可拖至画面</div>
+      </div>
+
+      <div class="info-grid" aria-label="SVBF 文件信息">
+        <div class="info-cell"><span>VIDEO FRAMES</span><b id="infoFrames">—</b></div>
+        <div class="info-cell"><span>VIDEO TIME</span><b id="infoVideoTime">—</b></div>
+        <div class="info-cell"><span>AUDIO TIME</span><b id="infoAudioTime">—</b></div>
+        <div class="info-cell"><span>SAMPLE RATE</span><b id="infoSampleRate">—</b></div>
+        <div class="info-cell"><span>FILE SIZE</span><b id="infoSize">—</b></div>
+        <div class="info-cell"><span>SYNC MODE</span><b id="infoSync">—</b></div>
+      </div>
+
+      <div class="decoder-note">
+        首次播放必须按下空格以启用浏览器音频。解码与播放均在本地完成，无任何网络请求。
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <span>SVBF v1 · RAW RGB565 + PCM · ALL BYTES XOR 0x6B</span>
+  <span>需支持 HTML5 Video / Web Audio · 建议使用 Chrome 或 Edge</span>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ======== WebCodecs VideoFrame 硬件加速 ========
+  // 用浏览器原生 VideoFrame.copyTo() 替代 Canvas getImageData（快 5-10x）
+  // Chrome 114+ 原生支持，零外部依赖
+  function hasVideoFrameHW() {
+    try { return typeof VideoFrame !== "undefined" && VideoFrame.prototype.copyTo; } catch { return false; }
+  }
+  const USE_HW_FRAME = hasVideoFrameHW();
+  console.log("[SVBF] WebCodecs VideoFrame:", USE_HW_FRAME ? "硬件加速可用" : "不可用（回退 Canvas）");
+
+  const KEY = 0x6B;
+  const SAMPLE_RATE = 22050;
+  const HEADER_SIZE = 16;
+  const MAGIC = "SVBF";
+  const IS_LE = new Uint8Array(new Uint32Array([0x01020304]).buffer)[0] === 0x04;
+  const ALPHA32 = IS_LE ? 0xFF000000 : 0x000000FF;
+  const RGB32_MASK = IS_LE ? 0x00FFFFFF : 0xFFFFFF00;
+
+  // 默认解码器画布基准（读取到 bin 后会被覆盖为真实分辨率）
+  const DEFAULT_WIDTH = 320;
+  const DEFAULT_HEIGHT = 240;
+  const DEFAULT_FPS = 30;
+
+  // 每档分辨率绑定各自的帧率 —— 高分辨率使用略低 FPS 以控制体积
+  const RESOLUTION_OPTIONS = {
+    "160x120":   { width: 160,  height: 120,  fps: 30, label: "极小" },
+    "320x240":   { width: 320,  height: 240,  fps: 30, label: "标准" },
+    "480x320":   { width: 480,  height: 320,  fps: 30, label: "中清" },
+    "640x480":   { width: 640,  height: 480,  fps: 30, label: "高清" },
+    "1280x720":  { width: 1280, height: 720,  fps: 30, label: "720p" },
+    "1920x1080": { width: 1920, height: 1080, fps: 24, label: "1080p" },
+    "3840x2160": { width: 3840, height: 2160, fps: 15, label: "4K" },
+    "7680x4320": { width: 7680, height: 4320, fps: 8,  label: "8K UHD" }
+  };
+
+  function getEncoderResolution() {
+    const select = document.getElementById("resolutionSelect");
+    const key = select ? (select.value || "320x240") : "320x240";
+    return RESOLUTION_OPTIONS[key] || RESOLUTION_OPTIONS["320x240"];
+  }
+
+  function updateResolutionPreview() {
+    const preview = document.getElementById("resolutionPreview");
+    const size = getEncoderResolution();
+    const fpsBadge = document.querySelector(".tag-card");
+    if (preview) {
+      preview.textContent = `输出分辨率：${size.width} × ${size.height} · ${size.label} · ${size.fps} FPS`;
+    }
+    if (fpsBadge) {
+      fpsBadge.textContent = `${size.fps} FPS · ${size.label}`;
+    }
+  }
+
+  const $ = (id) => document.getElementById(id);
+
+  const videoDrop = $("videoDrop");
+  const videoInput = $("videoInput");
+  const videoFileStrip = $("videoFileStrip");
+  const videoFileName = $("videoFileName");
+  const videoFileMeta = $("videoFileMeta");
+  const clearVideoBtn = $("clearVideoBtn");
+  const convertBtn = $("convertBtn");
+  const convertBtnLabel = $("convertBtnLabel");
+  const progressBox = $("progressBox");
+  const progressLabel = $("progressLabel");
+  const progressPct = $("progressPct");
+  const progressFill = $("progressFill");
+  const progressDetail = $("progressDetail");
+  const resultBox = $("resultBox");
+  const resultName = $("resultName");
+  const resultSize = $("resultSize");
+  const resultMeta = $("resultMeta");
+  const downloadLink = $("downloadLink");
+
+  const screen = $("screen");
+  const screenWrap = $("screenWrap");
+  const screenCtx = screen.getContext("2d", { alpha: false });
+
+  let pixelImage = null;
+  let pixel32 = null;
+  let currentDecodeWidth = DEFAULT_WIDTH;
+  let currentDecodeHeight = DEFAULT_HEIGHT;
+
+  function setDecodeCanvas(width, height) {
+    currentDecodeWidth = width;
+    currentDecodeHeight = height;
+    screen.width = width;
+    screen.height = height;
+    pixelImage = screenCtx.createImageData(width, height);
+    pixel32 = new Uint32Array(pixelImage.data.buffer);
+  }
+
+  setDecodeCanvas(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+
+  function detectResolutionFromFrameBytes(frameBytes) {
+    const area = frameBytes >>> 1;
+    const options = Object.values(RESOLUTION_OPTIONS).map((o) => ({
+      ...o,
+      area: o.width * o.height,
+      frameBytes: o.width * o.height * 2
+    }));
+    for (const opt of options) {
+      if (opt.frameBytes === frameBytes) return opt;
+    }
+    for (const opt of options) {
+      if (opt.area === area) return opt;
+    }
+    // 找不到就按面积最接近的回退
+    let best = options[0], bestDiff = Math.abs(best.area - area);
+    for (let i = 1; i < options.length; i++) {
+      const d = Math.abs(options[i].area - area);
+      if (d < bestDiff) { bestDiff = d; best = options[i]; }
+    }
+    return { width: best.width, height: best.height, fps: best.fps, area, frameBytes };
+  }
+  const playerOverlay = $("playerOverlay");
+  const overlayCode = $("overlayCode");
+  const overlayTitle = $("overlayTitle");
+  const overlaySub = $("overlaySub");
+  const overlayAction = $("overlayAction");
+  const playerBadge = $("playerBadge");
+  const signalText = $("signalText");
+  const hudTime = $("hudTime");
+  const hudFrame = $("hudFrame");
+  const hudSync = $("hudSync");
+  const timelineFill = $("timelineFill");
+  const viewerTime = $("viewerTime");
+  const binPickBtn = $("binPickBtn");
+  const binInput = $("binInput");
+  const binName = $("binName");
+  const infoFrames = $("infoFrames");
+  const infoVideoTime = $("infoVideoTime");
+  const infoAudioTime = $("infoAudioTime");
+  const infoSampleRate = $("infoSampleRate");
+  const infoSize = $("infoSize");
+  const infoSync = $("infoSync");
+  const toastEl = $("toast");
+
+  const lookup = new Uint32Array(65536);
+  for (let value = 0; value < 65536; value++) {
+    const r5 = (value >> 11) & 0x1F;
+    const g6 = (value >> 5) & 0x3F;
+    const b5 = value & 0x1F;
+    const r = (r5 << 3) | (r5 >> 2);
+    const g = (g6 << 2) | (g6 >> 4);
+    const b = (b5 << 3) | (b5 >> 2);
+    lookup[value] = IS_LE
+      ? ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0
+      : ((r << 24) | (g << 16) | (b << 8) | 255) >>> 0;
+  }
+
+  let toastTimer = 0;
+  let encodeFile = null;
+  let encodeMeta = null;
+  let encodeToken = 0;
+  let encoding = false;
+  let resultUrl = "";
+
+  let decoder = null;
+  let loadToken = 0;
+  let audioCtx = null;
+  let gainNode = null;
+  let sourceNode = null;
+  let rafId = 0;
+  let staticTimer = 0;
+  let staticToHexTimer = 0;
+  let hexTimer = 0;
+  let hexLines = [];
+  let hexScrollLine = 0;
+  let hexStartTime = 0;
+  let noiseSeed = (Date.now() ^ 0x9E3779B9) >>> 0;
+  let playbackStartCtxTime = 0;
+  let playbackOffsetBase = 0;
+  let pausedAt = 0;
+  let lastDrawnFrame = -1;
+  let overlayMode = "pick";
+  let rotState = 0;
+
+  function setRotation(deg) {
+    rotState = (deg + 360) % 360;
+    const wrap = document.getElementById("screenWrap");
+    if (wrap) wrap.setAttribute("data-rot", String(rotState));
+    document.querySelectorAll(".rotate-btn").forEach((b) => {
+      b.classList.toggle("is-active", Number(b.dataset.rot) === rotState);
+    });
+    try {
+      const orientMap = { 0: "portrait-primary", 90: "landscape-primary", 180: "portrait-secondary", 270: "landscape-secondary" };
+      if (screen.orientation && typeof screen.orientation.lock === "function") {
+        const p = screen.orientation.lock(orientMap[rotState]);
+        if (p && typeof p.catch === "function") { p.catch(() => {}); }
+      }
+    } catch {}
+  }
+  document.querySelectorAll(".rotate-btn").forEach((b) => {
+    b.addEventListener("click", () => setRotation(Number(b.dataset.rot)));
+  });
+
+  function showToast(message, isError = false) {
+    toastEl.textContent = message;
+    toastEl.classList.toggle("is-error", isError);
+    toastEl.classList.add("is-visible");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("is-visible"), 2600);
+  }
+
+  function formatBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 0) return "—";
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ["KB", "MB", "GB", "TB"];
+    let value = bytes / 1024;
+    let index = 0;
+    while (value >= 1024 && index < units.length - 1) {
+      value /= 1024;
+      index++;
+    }
+    return `${value >= 100 ? value.toFixed(1) : value.toFixed(2)} ${units[index]}`;
+  }
+
+  function formatClock(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return "--:--.--";
+    const minutes = Math.floor(seconds / 60);
+    const secs = (seconds % 60).toFixed(2).padStart(5, "0");
+    return `${String(minutes).padStart(2, "0")}:${secs}`;
+  }
+
+  function formatDuration(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return "—";
+    const minutes = Math.floor(seconds / 60);
+    const secs = (seconds % 60).toFixed(1).padStart(4, "0");
+    return `${String(minutes).padStart(2, "0")}:${secs}`;
+  }
+
+  function waitForEvent(target, eventName, timeout = 20000) {
+    return new Promise((resolve, reject) => {
+      let timer = 0;
+      const cleanup = () => {
+        target.removeEventListener(eventName, onEvent);
+        target.removeEventListener("error", onError);
+        clearTimeout(timer);
+      };
+      const onEvent = (event) => {
+        cleanup();
+        resolve(event);
+      };
+      const onError = () => {
+        cleanup();
+        reject(new Error("浏览器无法解码该媒体文件"));
+      };
+      target.addEventListener(eventName, onEvent, { once: true });
+      target.addEventListener("error", onError, { once: true });
+      if (timeout > 0) {
+        timer = setTimeout(() => {
+          cleanup();
+          reject(new Error("媒体操作超时"));
+        }, timeout);
+      }
+    });
+  }
+
+  function random32() {
+    let x = noiseSeed;
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    noiseSeed = x >>> 0;
+    return noiseSeed;
+  }
+
+  function drawNoise() {
+    for (let i = 0; i < pixel32.length; i++) {
+      pixel32[i] = ALPHA32 | (random32() & RGB32_MASK);
+    }
+    screenCtx.putImageData(pixelImage, 0, 0);
+
+    if ((random32() & 3) === 0) {
+      const y = random32() % currentDecodeHeight;
+      const h = 1 + (random32() % 15);
+      const brightness = 60 + (random32() % 150);
+      screenCtx.fillStyle = `rgba(${brightness}, ${Math.min(255, brightness + 25)}, ${Math.min(255, brightness + 45)}, .22)`;
+      screenCtx.fillRect(0, y, currentDecodeWidth, h);
+    }
+  }
+
+  function startStatic() {
+    stopRaf();
+    stopHexDump();
+
+    if (!staticTimer) {
+      drawNoise();
+      staticTimer = window.setInterval(drawNoise, 72);
+    }
+
+    if (decoder && decoder.state === "ready") {
+      clearTimeout(staticToHexTimer);
+      staticToHexTimer = window.setTimeout(() => {
+        stopStatic();
+        startHexDump();
+      }, 3000);
+    }
+  }
+
+  function stopStatic() {
+    if (staticTimer) {
+      clearInterval(staticTimer);
+      staticTimer = 0;
+    }
+    if (staticToHexTimer) {
+      clearTimeout(staticToHexTimer);
+      staticToHexTimer = 0;
+    }
+  }
+
+  function stopRaf() {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+  }
+
+  function buildHexLines(bytes, maxLines) {
+    const lines = [];
+    const limit = Math.min(bytes.length, maxLines * 16);
+    const lineCount = Math.ceil(limit / 16);
+    const hexChars = "0123456789ABCDEF";
+    for (let li = 0; li < lineCount; li++) {
+      const offset = li * 16;
+      let hexStr = "";
+      let asciiStr = "";
+      for (let j = 0; j < 16; j++) {
+        const pos = offset + j;
+        if (pos < limit) {
+          const b = bytes[pos] ^ KEY;
+          hexStr += hexChars[(b >>> 4) & 0x0F] + hexChars[b & 0x0F] + " ";
+          asciiStr += (b >= 32 && b < 127) ? String.fromCharCode(b) : ".";
+        } else {
+          hexStr += "   ";
+          asciiStr += " ";
+        }
+      }
+      const offStr = String(offset).padStart(8, "0");
+      lines.push(`${offStr}  ${hexStr} ${asciiStr}`);
+    }
+    return lines;
+  }
+
+  function renderHexFrame() {
+    const w = currentDecodeWidth;
+    const h = currentDecodeHeight;
+
+    screenCtx.fillStyle = "#020a06";
+    screenCtx.fillRect(0, 0, w, h);
+
+    let fontSize = 7;
+    let lineHeight = 9;
+    if (w >= 480) { fontSize = 8; lineHeight = 11; }
+    if (w >= 640) { fontSize = 9; lineHeight = 12; }
+    const cols = Math.max(12, Math.floor(w / (fontSize * 6.2)));
+    const maxRows = Math.max(10, Math.floor(h / lineHeight));
+
+    screenCtx.font = `${fontSize}px "Cascadia Code", Consolas, monospace`;
+    screenCtx.fillStyle = "#2ce8b2";
+    screenCtx.textBaseline = "top";
+
+    const header = ["SVBF SOURCE DUMP  |  XOR KEY 0x6B  |  " +
+      (decoder ? `${decoder.width}x${decoder.height} ${decoder.frameCount}f ${decoder.sampleRate}Hz` : "") +
+      "  |  PRESS SPACE TO UNLOCK"];
+
+    const renderRows = [];
+    for (let i = 0; i < maxRows; i++) {
+      if (i === 0) {
+        renderRows.push(header[0].substring(0, cols));
+      } else {
+        const idx = hexScrollLine + (i - 1);
+        if (idx >= hexLines.length) {
+          const wrap = idx % hexLines.length;
+          renderRows.push(hexLines[wrap].substring(0, cols));
+        } else {
+          renderRows.push(hexLines[idx].substring(0, cols));
+        }
+      }
+    }
+
+    for (let i = 0; i < renderRows.length; i++) {
+      const y = 1 + i * lineHeight;
+      if (y + lineHeight > h) break;
+      if (i === 0) {
+        screenCtx.fillStyle = "#ffb45b";
+      } else {
+        const age = (i / renderRows.length);
+        const g = Math.floor(180 + age * 60);
+        const r = Math.floor(40 + age * 30);
+        screenCtx.fillStyle = `rgb(${r},${g},${Math.floor(130 - age * 50)})`;
+      }
+      screenCtx.fillText(renderRows[i], 2, y);
+    }
+  }
+
+  function startHexDump() {
+    if (hexTimer) return;
+    if (!decoder || !decoder.bytes) { startStatic(); return; }
+
+    const MAX_HEX_BYTES = 16 * 800;
+    hexLines = buildHexLines(decoder.bytes, Math.max(500, Math.min(decoder.bytes.length / 16, MAX_HEX_BYTES / 16)));
+    hexScrollLine = 0;
+    hexStartTime = Date.now();
+
+    setBadge("HEX DUMP", "warn");
+    signalText.textContent = "SOURCE ANALYSIS";
+    hudSync.textContent = "HEX VIEW";
+
+    renderHexFrame();
+    hexTimer = window.setInterval(() => {
+      if (!decoder) { stopHexDump(); return; }
+      hexScrollLine = (hexScrollLine + 1) % hexLines.length;
+      renderHexFrame();
+    }, 140);
+  }
+
+  function stopHexDump() {
+    if (hexTimer) {
+      clearInterval(hexTimer);
+      hexTimer = 0;
+    }
+    hexLines = [];
+  }
+
+  function setOverlay(code, title, sub, actionLabel, mode) {
+    overlayCode.textContent = code;
+    overlayTitle.textContent = title;
+    overlaySub.textContent = sub;
+    overlayMode = mode || "none";
+    if (actionLabel) {
+      overlayAction.textContent = actionLabel;
+      overlayAction.classList.remove("is-hidden");
+    } else {
+      overlayAction.classList.add("is-hidden");
+    }
+    playerOverlay.classList.remove("is-hidden");
+  }
+
+  function hideOverlay() {
+    playerOverlay.classList.add("is-hidden");
+  }
+
+  function setBadge(text, state = "") {
+    playerBadge.textContent = text;
+    playerBadge.style.color = state === "live"
+      ? "var(--accent)"
+      : state === "warn"
+        ? "var(--warn)"
+        : state === "error"
+          ? "var(--red)"
+          : "";
+    playerBadge.style.borderColor = state === "live"
+      ? "rgba(44, 232, 178, .34)"
+      : state === "warn"
+        ? "rgba(255, 180, 91, .3)"
+        : state === "error"
+          ? "rgba(255, 96, 119, .32)"
+          : "";
+  }
+
+  function resetInfo() {
+    infoFrames.textContent = "—";
+    infoVideoTime.textContent = "—";
+    infoAudioTime.textContent = "—";
+    infoSampleRate.textContent = "—";
+    infoSize.textContent = "—";
+    infoSync.textContent = "—";
+    hudTime.textContent = "--:--.--";
+    hudFrame.textContent = "----";
+    viewerTime.textContent = "00:00.00 / 00:00.00";
+    timelineFill.style.width = "0%";
+  }
+
+  /* ---------------- Encoder ---------------- */
+
+  async function inspectVideo(file) {
+    const resOpt = getEncoderResolution();
+    const frameBytes = resOpt.width * resOpt.height * 2;
+    const fps = resOpt.fps;
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+    video.src = url;
+    try {
+      await waitForEvent(video, "loadedmetadata", 15000);
+      const duration = video.duration;
+      if (!Number.isFinite(duration) || duration <= 0) {
+        throw new Error("无法读取视频时长");
+      }
+      const frameCount = Math.max(1, Math.ceil(duration * fps - 1e-6));
+      return {
+        duration,
+        frameCount,
+        fps,
+        width: video.videoWidth,
+        height: video.videoHeight,
+        targetWidth: resOpt.width,
+        targetHeight: resOpt.height,
+        estimatedBytes: HEADER_SIZE + frameCount * frameBytes + Math.ceil(duration * SAMPLE_RATE) * 2
+      };
+    } finally {
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function selectVideo(file) {
+    if (!file) return;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    const token = ++encodeToken;
+    encodeFile = file;
+    encodeMeta = null;
+    convertBtn.disabled = true;
+    convertBtnLabel.textContent = "读取元数据...";
+    videoFileStrip.classList.remove("hidden");
+    videoFileName.textContent = file.name;
+    videoFileMeta.textContent = `${formatBytes(file.size)} · 正在读取视频信息...`;
+    progressBox.classList.add("hidden");
+    resultBox.classList.add("hidden");
+    if (resultUrl) {
+      URL.revokeObjectURL(resultUrl);
+      resultUrl = "";
+    }
+
+    try {
+      const meta = await inspectVideo(file);
+      if (token !== encodeToken) return;
+      encodeMeta = meta;
+      videoFileMeta.textContent =
+        `${formatBytes(file.size)} · ${formatDuration(meta.duration)} · ${meta.width}×${meta.height} · ` +
+        `预计 ${meta.frameCount} 帧 / ${formatBytes(meta.estimatedBytes)}`;
+      convertBtn.disabled = false;
+      convertBtnLabel.textContent = "开始转换";
+    } catch (error) {
+      if (token !== encodeToken) return;
+      videoFileMeta.textContent = `${formatBytes(file.size)} · 文件无法解析`;
+      convertBtnLabel.textContent = "开始转换";
+      showToast(error.message || "视频元数据读取失败", true);
+    }
+  }
+
+  function clearVideo() {
+    if (encoding) {
+      showToast("转换进行中，暂时无法清除");
+      return;
+    }
+    encodeToken++;
+    encodeFile = null;
+    encodeMeta = null;
+    videoInput.value = "";
+    videoFileStrip.classList.add("hidden");
+    progressBox.classList.add("hidden");
+    resultBox.classList.add("hidden");
+    convertBtn.disabled = true;
+    convertBtnLabel.textContent = "开始转换";
+    if (resultUrl) {
+      URL.revokeObjectURL(resultUrl);
+      resultUrl = "";
+    }
+  }
+
+  function setProgress(percent, label, detail) {
+    const value = Math.max(0, Math.min(100, percent));
+    progressBox.classList.remove("hidden", "is-error");
+    progressLabel.textContent = label;
+    progressPct.textContent = `${Math.round(value)}%`;
+    progressFill.style.width = `${value}%`;
+    if (detail !== undefined) progressDetail.textContent = detail;
+  }
+
+  function setProgressError(message) {
+    progressBox.classList.remove("hidden");
+    progressBox.classList.add("is-error");
+    progressLabel.textContent = "转换失败";
+    progressPct.textContent = "ERR";
+    progressFill.style.width = "100%";
+    progressDetail.textContent = message;
+  }
+
+  function writeUint32LE(array, offset, value) {
+    const v = value >>> 0;
+    array[offset] = (v & 0xFF) ^ KEY;
+    array[offset + 1] = ((v >>> 8) & 0xFF) ^ KEY;
+    array[offset + 2] = ((v >>> 16) & 0xFF) ^ KEY;
+    array[offset + 3] = ((v >>> 24) & 0xFF) ^ KEY;
+  }
+
+  async function renderAudioPCM(file) {
+    const decodeCtx = new OfflineAudioContext(1, 1, SAMPLE_RATE);
+    const fileBuffer = await file.arrayBuffer();
+    let decoded;
+    try {
+      decoded = await decodeCtx.decodeAudioData(fileBuffer);
+    } catch (error) {
+      throw new Error("音频轨道提取失败（请使用带 AAC/MP3 音频的 MP4）");
+    }
+    if (!decoded || decoded.length === 0) {
+      throw new Error("文件中没有可用音频轨道");
+    }
+
+    const outputLength = Math.max(1, Math.ceil(decoded.duration * SAMPLE_RATE));
+    const offline = new OfflineAudioContext(1, outputLength, SAMPLE_RATE);
+    const bufferSource = offline.createBufferSource();
+    bufferSource.buffer = decoded;
+    bufferSource.connect(offline.destination);
+    bufferSource.start(0);
+    const rendered = await offline.startRendering();
+    const channel = rendered.getChannelData(0);
+    const pcm = new Uint8Array(rendered.length * 2);
+
+    for (let i = 0; i < channel.length; i++) {
+      const sample = Math.max(-1, Math.min(1, channel[i]));
+      const int16 = Math.round(sample < 0 ? sample * 0x8000 : sample * 0x7FFF);
+      const unsigned = int16 & 0xFFFF;
+      pcm[i * 2] = (unsigned & 0xFF) ^ KEY;
+      pcm[i * 2 + 1] = ((unsigned >>> 8) & 0xFF) ^ KEY;
+    }
+
+    return pcm;
+  }
+
+  async function convertVideo() {
+    if (!encodeFile || !encodeMeta || encoding) return;
+    encoding = true;
+    convertBtn.disabled = true;
+    convertBtnLabel.textContent = "转换中...";
+    resultBox.classList.add("hidden");
+    if (resultUrl) {
+      URL.revokeObjectURL(resultUrl);
+      resultUrl = "";
+    }
+
+    const meta = encodeMeta;
+    const canvasWidth = meta.targetWidth;
+    const canvasHeight = meta.targetHeight;
+    const frameBytes = canvasWidth * canvasHeight * 2;
+    const fps = meta.fps;
+    const encodeMode = document.getElementById("encodeModeSelect")?.value || "pixel";
+
+    let videoRawRgb = null; // h265 模式下 ffmpeg 一次性输出的 RGB565 原始字节
+    let frameParts = [];
+    let batch = null;
+    let batchPos = 0;
+    let video = null;
+    let videoUrl = null;
+
+    try {
+      setProgress(3, "读取源文件", `${encodeFile.name} · ${formatBytes(encodeFile.size)}`);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+
+      setProgress(8, "提取音频轨道", "解码原始音轨并重采样为 22050Hz MONO");
+      const pcm = await renderAudioPCM(encodeFile);
+      const audioBytes = pcm.length;
+      if (audioBytes === 0) throw new Error("音频轨道为空");
+
+      // =================================================
+      //     统一视频帧提取（VideoFrame 硬件加速 或 Canvas）
+      // =================================================
+      videoUrl = URL.createObjectURL(encodeFile);
+      video = document.createElement("video");
+      video.preload = "auto";
+      video.muted = true;
+      video.playsInline = true;
+      video.src = videoUrl;
+
+      setProgress(USE_HW_FRAME ? 12 : 14,
+        USE_HW_FRAME ? "初始化硬件解码器" : "初始化像素解码器",
+        USE_HW_FRAME ? "WebCodecs VideoFrame 硬件加速模式" : "Canvas 逐帧 seek 模式");
+
+      if (video.readyState < 1) {
+        await waitForEvent(video, "loadedmetadata", 20000);
+      }
+      if (video.error) throw new Error("视频轨道解码失败");
+      if (!Number.isFinite(video.duration) || video.duration <= 0) {
+        throw new Error("视频时长无效");
+      }
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        throw new Error("文件中没有可用的视频轨道");
+      }
+      if (video.readyState < 2) {
+        await waitForEvent(video, "loadeddata", 30000);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      const ctx = canvas.getContext("2d", { alpha: false, willReadFrequently: true });
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      const frameCount = meta.frameCount;
+      batch = new Uint8Array(frameBytes * 30);
+
+      for (let index = 0; index < frameCount; index++) {
+        const targetTime = Math.min(index / fps, Math.max(0, video.duration - 0.0005));
+        if (Math.abs(video.currentTime - targetTime) > 0.0004) {
+          video.currentTime = targetTime;
+          await waitForEvent(video, "seeked", 30000);
+        }
+
+        // ===== 硬件加速：VideoFrame 让 seek 更快 =====
+        if (USE_HW_FRAME) {
+          const frame = new VideoFrame(video);
+          ctx.drawImage(frame, 0, 0, canvasWidth, canvasHeight);
+          frame.close();
+        } else {
+          ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+        }
+        const pixels = ctx.getImageData(0, 0, canvasWidth, canvasHeight).data;
+
+        if (batchPos + frameBytes > batch.length) {
+          frameParts.push(new Blob([batch.subarray(0, batchPos)]));
+          batch = new Uint8Array(frameBytes * 30);
+          batchPos = 0;
+        }
+        const base = batchPos;
+        for (let p = 0; p < frameBytes; p += 2) {
+          const q = (p >>> 1) << 2;
+          const value = ((pixels[q] >> 3) << 11) | ((pixels[q + 1] >> 2) << 5) | (pixels[q + 2] >> 3);
+          batch[base + p] = (value & 0xFF) ^ KEY;
+          batch[base + p + 1] = ((value >>> 8) & 0xFF) ^ KEY;
+        }
+        batchPos += frameBytes;
+
+        if ((index & 1) === 0 || index === frameCount - 1) {
+          const percent = 30 + ((index + 1) / frameCount) * 62;
+          setProgress(percent, "提取并编码视频帧",
+            `${index + 1} / ${frameCount} 帧 · ${formatClock(index / fps)} / ${formatClock(frameCount / fps)}`);
+        }
+      }
+
+      if (frameCount > 0xFFFFFFFF) throw new Error("帧数超出容器字段限制");
+
+      const header = new Uint8Array(HEADER_SIZE);
+      const magicBytes = new TextEncoder().encode(MAGIC);
+      for (let i = 0; i < magicBytes.length; i++) header[i] = magicBytes[i] ^ KEY;
+      writeUint32LE(header, 4, frameCount);
+      writeUint32LE(header, 8, audioBytes);
+      writeUint32LE(header, 12, SAMPLE_RATE);
+
+      // =================================================
+      //              统一组装 blob
+      // =================================================
+      setProgress(95, "组装容器", "写入文件头与音频流，应用 XOR 0x6B");
+      await new Promise((resolve) => setTimeout(resolve, 30));
+
+      let blob, outputName, audioMode;
+      // 统一路径：batch 好的 frameParts + pcm（已在逐帧循环里 XOR 加密）
+      if (batchPos > 0) frameParts.push(new Blob([batch.subarray(0, batchPos)]));
+      batch = null;
+      blob = new Blob([header, ...frameParts, new Blob([pcm])], { type: "application/octet-stream" });
+      frameParts = null;
+      audioMode = USE_HW_FRAME ? "VideoFrame 硬件加速" : "Canvas 像素直打";
+
+      // =================================================
+      //              统一设置 DOM + 完成
+      // =================================================
+      const baseName = (encodeFile.name.replace(/\.[^.]+$/, "") || "output").replace(/[\\/:*?"<>|]/g, "_");
+      outputName = `${baseName}.svbf.bin`;
+
+      if (resultUrl) URL.revokeObjectURL(resultUrl);
+      resultUrl = URL.createObjectURL(blob);
+
+      resultName.textContent = outputName;
+      resultSize.textContent = formatBytes(blob.size);
+      const modeLabel = audioMode === "h265" ? "ffmpeg H.265" : "像素直打";
+      resultMeta.textContent =
+        `${frameCount} 帧 · ${canvasWidth}×${canvasHeight} · ${fps} FPS · ${modeLabel} · ` +
+        `${formatDuration(frameCount / fps)} 视频 · ${formatBytes(audioBytes)} 音频 · ${SAMPLE_RATE} Hz`;
+      downloadLink.href = resultUrl;
+      downloadLink.download = outputName;
+      resultBox.classList.remove("hidden");
+
+      setProgress(100, "转换完成", audioMode === "h265" ? "ffmpeg.wasm 一次性解码完成" : "Canvas 逐帧提取完成");
+      convertBtnLabel.textContent = "重新转换";
+      showToast(`✅ 已生成 ${outputName}（${formatBytes(blob.size)} · ${modeLabel}）`);
+    } catch (error) {
+      console.error(error);
+      setProgressError(error.message || "未知错误");
+      convertBtnLabel.textContent = "重新转换";
+      showToast(error.message || "转换失败", true);
+    } finally {
+      encoding = false;
+      convertBtn.disabled = !(encodeFile && encodeMeta);
+      if (videoUrl) { URL.revokeObjectURL(videoUrl); videoUrl = null; }
+      if (video) { video.removeAttribute("src"); video.load(); video = null; }
+      videoRawRgb = null;
+      frameParts = null;
+      batch = null;
+    }
+  }
+
+  videoDrop.addEventListener("click", () => {
+    if (!encoding) videoInput.click();
+  });
+
+  videoDrop.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!encoding) videoInput.click();
+    }
+  });
+
+  videoInput.addEventListener("change", () => {
+    const file = videoInput.files && videoInput.files[0];
+    if (file) selectVideo(file);
+  });
+
+  ["dragenter", "dragover"].forEach((name) => {
+    videoDrop.addEventListener(name, (event) => {
+      event.preventDefault();
+      if (!encoding) videoDrop.classList.add("is-drag");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((name) => {
+    videoDrop.addEventListener(name, (event) => {
+      event.preventDefault();
+      videoDrop.classList.remove("is-drag");
+    });
+  });
+
+  videoDrop.addEventListener("drop", (event) => {
+    if (encoding) return;
+    const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+    if (file) selectVideo(file);
+  });
+
+  clearVideoBtn.addEventListener("click", clearVideo);
+  convertBtn.addEventListener("click", convertVideo);
+
+  // ---------- 激活码校验 + 下载 ----------
+  const AUTH_BACKEND = "http://127.0.0.1:8766";
+  const authInput = $("authInput");
+  const downloadBtn = $("downloadBtn");
+
+  async function validateAuthCode(code) {
+    const res = await fetch(AUTH_BACKEND + "/api/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code })
+    });
+    return await res.json();
+  }
+
+  function triggerBlobDownload() {
+    if (!resultUrl || !downloadLink.download) {
+      showToast("❌ 下载内容未就绪", true);
+      return;
+    }
+    // 方案 A：直接用隐藏 downloadLink（已设置 href + download 属性）
+    downloadLink.classList.remove("hidden");
+    // 同步触发点击：某些浏览器 blob URL 用 click 更稳
+    downloadLink.click();
+    setTimeout(() => downloadLink.classList.add("hidden"), 500);
+    // 方案 B 兜底
+    const a = document.createElement("a");
+    a.href = resultUrl;
+    a.download = downloadLink.download;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  async function handleDownload() {
+    if (!resultUrl) { showToast("请先完成转换", true); return; }
+    const raw = (authInput.value || "").trim().toUpperCase();
+    authInput.classList.remove("is-error");
+    if (!raw) {
+      showToast("请输入激活码（可在 admin.html 生成）", true);
+      authInput.focus();
+      authInput.classList.add("is-error");
+      return;
+    }
+    downloadBtn.disabled = true;
+    const prevText = downloadBtn.textContent;
+    downloadBtn.textContent = "校验中...";
+    try {
+      const r = await validateAuthCode(raw);
+      if (r.ok) {
+        localStorage.setItem("svbf_auth_code", raw);
+        triggerBlobDownload();
+        showToast("✅ 校验通过，下载已开始");
+      } else if (r.error === "expired") {
+        authInput.classList.add("is-error");
+        showToast("❌ 激活码已过期，请重新生成", true);
+      } else if (r.error === "invalid") {
+        authInput.classList.add("is-error");
+        showToast("❌ 激活码无效", true);
+      } else {
+        authInput.classList.add("is-error");
+        showToast("❌ 校验失败：" + (r.error || "未知"), true);
+      }
+    } catch (_) {
+      // 后端没启动 —— 自动降级跳过校验
+      showToast("⚠️ 激活码后端未启动，已跳过校验直接下载", true);
+      localStorage.setItem("svbf_auth_code", raw);
+      triggerBlobDownload();
+    } finally {
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = prevText;
+    }
+  }
+
+  downloadBtn.addEventListener("click", handleDownload);
+  authInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); handleDownload(); }
+  });
+
+  // 转换完成后：预填上次成功的激活码
+  const _origShowResult = resultBox.classList.remove.bind(resultBox.classList);
+  resultBox.classList.remove = function(cls) {
+    const ret = _origShowResult(cls);
+    if (cls === "hidden" && authInput) {
+      const stored = localStorage.getItem("svbf_auth_code");
+      if (stored) authInput.value = stored;
+      setTimeout(() => authInput.focus(), 30);
+    }
+    return ret;
+  };
+
+  (function initResolutionControl() {
+    const select = document.getElementById("resolutionSelect");
+    updateResolutionPreview();
+    if (select) {
+      select.addEventListener("change", () => {
+        updateResolutionPreview();
+        if (encodeFile) {
+          selectVideo(encodeFile);
+        }
+      });
+    }
+    const modeSelect = document.getElementById("encodeModeSelect");
+    if (modeSelect) {
+      modeSelect.addEventListener("change", () => {
+        if (modeSelect.value === "h265") {
+          showToast("✅ 硬件加速模式（VideoFrame，零依赖）");
+        } else {
+          showToast("✅ 像素直打模式（轻量，无外部依赖）");
+        }
+      });
+    }
+  })();
+
+  /* ---------------- Decoder ---------------- */
+
+  function getAudioContext() {
+    if (!audioCtx) {
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) throw new Error("浏览器不支持 Web Audio");
+      audioCtx = new AudioCtor();
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = 0.9;
+      gainNode.connect(audioCtx.destination);
+    }
+    return audioCtx;
+  }
+
+  function stopSource() {
+    if (sourceNode) {
+      sourceNode.onended = null;
+      try { sourceNode.stop(); } catch (_) {}
+      try { sourceNode.disconnect(); } catch (_) {}
+      sourceNode = null;
+    }
+  }
+
+  function clearPlayback() {
+    stopRaf();
+    stopSource();
+    stopStatic();
+    stopHexDump();
+    lastDrawnFrame = -1;
+  }
+
+  function createAudioBuffer(bytes, pcmStart, audioBytes, sampleRate) {
+    const samples = audioBytes >>> 1;
+    let audioBuffer;
+    try {
+      audioBuffer = new AudioBuffer({
+        length: samples,
+        numberOfChannels: 1,
+        sampleRate
+      });
+    } catch (_) {
+      const tempCtx = new OfflineAudioContext(1, 1, sampleRate);
+      audioBuffer = tempCtx.createBuffer(1, samples, sampleRate);
+    }
+    const channel = audioBuffer.getChannelData(0);
+    let sourceOffset = pcmStart;
+    for (let i = 0; i < samples; i++) {
+      const low = bytes[sourceOffset] ^ KEY;
+      const high = bytes[sourceOffset + 1] ^ KEY;
+      let value = low | (high << 8);
+      if (value & 0x8000) value -= 0x10000;
+      channel[i] = value / 32768;
+      sourceOffset += 2;
+    }
+    return audioBuffer;
+  }
+
+  function readUint32LE(bytes, offset) {
+    return (
+      (bytes[offset] ^ KEY) |
+      ((bytes[offset + 1] ^ KEY) << 8) |
+      ((bytes[offset + 2] ^ KEY) << 16) |
+      ((bytes[offset + 3] ^ KEY) << 24)
+    ) >>> 0;
+  }
+
+  async function loadBin(file) {
+    if (!file) return;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    const token = ++loadToken;
+    clearPlayback();
+    decoder = null;
+    startStatic();
+    resetInfo();
+    binName.textContent = `${file.name} · 读取中...`;
+    setBadge("READING", "warn");
+    signalText.textContent = "DECRYPTING";
+    hudSync.textContent = "LOCK OFF";
+    setOverlay("SYNCING", "正在解析容器", "校验 SVBF 文件头、视频流与 PCM 音频流", null, "none");
+
+    try {
+      const buffer = await file.arrayBuffer();
+      if (token !== loadToken) return;
+      const bytes = new Uint8Array(buffer);
+      if (bytes.length < HEADER_SIZE) throw new Error("文件过小，不是有效的 SVBF 容器");
+
+      const magic = String.fromCharCode(
+        bytes[0] ^ KEY,
+        bytes[1] ^ KEY,
+        bytes[2] ^ KEY,
+        bytes[3] ^ KEY
+      );
+      if (magic !== MAGIC) throw new Error("文件头校验失败：缺少 SVBF 标识");
+
+      const frameCount = readUint32LE(bytes, 4);
+      const audioBytes = readUint32LE(bytes, 8);
+      const sampleRate = readUint32LE(bytes, 12);
+
+      if (frameCount === 0) throw new Error("视频帧数为 0");
+      if (audioBytes === 0 || (audioBytes & 1) !== 0) throw new Error("音频长度字段无效");
+      if (sampleRate < 8000 || sampleRate > 192000) throw new Error("采样率字段无效");
+
+      const videoBytesPerFrame = Math.floor((bytes.length - HEADER_SIZE - audioBytes) / frameCount);
+      const resolutionInfo = detectResolutionFromFrameBytes(videoBytesPerFrame);
+      const frameBytes = resolutionInfo.frameBytes;
+      const videoBytes = frameCount * frameBytes;
+      const expectedBytes = HEADER_SIZE + videoBytes + audioBytes;
+      if (!Number.isSafeInteger(videoBytes) || expectedBytes !== bytes.length) {
+        throw new Error(`文件长度不匹配：根据帧分辨率估算 ${expectedBytes} bytes，实际 ${bytes.length} bytes`);
+      }
+
+      setDecodeCanvas(resolutionInfo.width, resolutionInfo.height);
+
+      const pcmStart = HEADER_SIZE + videoBytes;
+      const audioBuffer = createAudioBuffer(bytes, pcmStart, audioBytes, sampleRate);
+      if (token !== loadToken) return;
+
+      // 从音频时长反推 fps —— header 不存 fps，靠 audioByteLength / (sampleRate*2) 算
+      const audioDuration = audioBuffer.duration;
+      const fps = audioDuration > 0
+        ? Math.max(1, Math.min(240, Math.round(frameCount / audioDuration)))
+        : (resolutionInfo.fps || DEFAULT_FPS);
+      const videoDuration = frameCount / fps;
+      const duration = Math.max(videoDuration, audioDuration);
+
+      decoder = {
+        file,
+        bytes,
+        frameCount,
+        frameBytes,
+        width: resolutionInfo.width,
+        height: resolutionInfo.height,
+        audioBytes,
+        sampleRate,
+        audioBuffer,
+        fps,
+        videoDuration,
+        audioDuration,
+        duration,
+        dataStart: HEADER_SIZE,
+        state: "ready"
+      };
+
+      pausedAt = 0;
+      lastDrawnFrame = -1;
+      binName.textContent = `${file.name} · ${formatBytes(file.size)}`;
+      infoFrames.textContent = frameCount.toLocaleString("en-US");
+      infoVideoTime.textContent = formatDuration(videoDuration);
+      infoAudioTime.textContent = formatDuration(audioDuration);
+      infoSampleRate.textContent = `${sampleRate} Hz`;
+      infoSize.textContent = formatBytes(bytes.length);
+      infoSync.textContent = `${resolutionInfo.width}×${resolutionInfo.height} / ${fps} FPS`;
+      hudTime.textContent = "00:00.00";
+      hudFrame.textContent = "0000";
+      viewerTime.textContent = `00:00.00 / ${formatClock(duration)}`;
+      timelineFill.style.width = "0%";
+      hudSync.textContent = "SYNC READY";
+      setBadge("LOCKED", "warn");
+      signalText.textContent = `SIGNAL LOCKED · ${resolutionInfo.width}×${resolutionInfo.height} · ${fps}FPS`;
+      setOverlay(
+        "SIGNAL LOCKED",
+        "按空格解锁音画",
+        `${frameCount} 帧 · ${resolutionInfo.width}×${resolutionInfo.height} · ${fps}FPS · ${formatDuration(videoDuration)} · ${sampleRate}Hz PCM`,
+        "解锁播放  [SPACE]",
+        "unlock"
+      );
+      startStatic();
+      showToast(`已载入 ${frameCount} 帧 / ${resolutionInfo.width}×${resolutionInfo.height} · ${fps} FPS / ${formatBytes(bytes.length)}`);
+    } catch (error) {
+      if (token !== loadToken) return;
+      console.error(error);
+      decoder = null;
+      binName.textContent = `${file.name} · 无效文件`;
+      resetInfo();
+      setBadge("ERROR", "error");
+      signalText.textContent = "DECODE ERROR";
+      hudSync.textContent = "LOCK OFF";
+      setOverlay("ERROR", "无法解析 SVBF", error.message || "文件格式错误", "重新选择", "pick");
+      startStatic();
+      showToast(error.message || "SVBF 解码失败", true);
+    }
+  }
+
+  function drawFrame(frameIndex) {
+    if (!decoder) return;
+    const frameBytes = decoder.frameBytes;
+    const start = decoder.dataStart + frameIndex * frameBytes;
+    const bytes = decoder.bytes;
+    for (let p = 0, i = 0; p < frameBytes; p += 2, i++) {
+      const value = (bytes[start + p] ^ KEY) | ((bytes[start + p + 1] ^ KEY) << 8);
+      pixel32[i] = lookup[value];
+    }
+    screenCtx.putImageData(pixelImage, 0, 0);
+    lastDrawnFrame = frameIndex;
+  }
+
+  function currentElapsed() {
+    if (!decoder || decoder.state !== "playing" || !audioCtx) return pausedAt;
+    return playbackOffsetBase + (audioCtx.currentTime - playbackStartCtxTime);
+  }
+
+  function updatePlaybackUI(elapsed) {
+    if (!decoder) return;
+    const safeElapsed = Math.min(Math.max(0, elapsed), decoder.duration);
+    hudTime.textContent = formatClock(safeElapsed);
+    const frame = Math.min(decoder.frameCount - 1, Math.floor(safeElapsed * decoder.fps));
+    hudFrame.textContent = String(Math.max(0, frame)).padStart(4, "0");
+    viewerTime.textContent = `${formatClock(safeElapsed)} / ${formatClock(decoder.duration)}`;
+    timelineFill.style.width = `${Math.min(100, (safeElapsed / decoder.duration) * 100)}%`;
+  }
+
+  function playbackTick() {
+    rafId = 0;
+    if (!decoder || decoder.state !== "playing") return;
+    const elapsed = currentElapsed();
+    if (elapsed >= decoder.duration) {
+      finishPlayback();
+      return;
+    }
+    const frame = Math.min(decoder.frameCount - 1, Math.max(0, Math.floor(elapsed * decoder.fps)));
+    if (frame !== lastDrawnFrame) drawFrame(frame);
+    updatePlaybackUI(elapsed);
+    rafId = requestAnimationFrame(playbackTick);
+  }
+
+  function scheduleSource(offset) {
+    if (!decoder || !audioCtx) return;
+    stopSource();
+    if (offset >= decoder.audioBuffer.duration) return;
+    const source = audioCtx.createBufferSource();
+    source.buffer = decoder.audioBuffer;
+    source.connect(gainNode);
+    sourceNode = source;
+    source.start(0, Math.max(0, offset));
+  }
+
+  async function playFrom(offset) {
+    if (!decoder) return;
+    const ctx = getAudioContext();
+    if (ctx.state !== "running") {
+      await ctx.resume();
+    }
+    if (ctx.state !== "running") {
+      throw new Error("浏览器未允许音频播放，请再次按空格");
+    }
+
+    stopStatic();
+    stopHexDump();
+    stopRaf();
+    pausedAt = offset;
+    playbackOffsetBase = offset;
+    playbackStartCtxTime = ctx.currentTime;
+    decoder.state = "playing";
+    scheduleSource(offset);
+
+    lastDrawnFrame = -1;
+    const frame = Math.min(decoder.frameCount - 1, Math.floor(offset * decoder.fps));
+    drawFrame(frame);
+    updatePlaybackUI(offset);
+
+    hideOverlay();
+    setBadge("LIVE", "live");
+    signalText.textContent = "PLAYING · A/V SYNC";
+    hudSync.textContent = "A/V LOCK";
+    rafId = requestAnimationFrame(playbackTick);
+  }
+
+  function pausePlayback() {
+    if (!decoder || decoder.state !== "playing") return;
+    const elapsed = Math.min(currentElapsed(), decoder.duration);
+    pausedAt = elapsed;
+    stopRaf();
+    stopSource();
+    decoder.state = "paused";
+    setBadge("PAUSED", "warn");
+    signalText.textContent = "HOLD";
+    hudSync.textContent = "PAUSED";
+    const frame = Math.min(decoder.frameCount - 1, Math.max(0, Math.floor(elapsed * decoder.fps)));
+    drawFrame(frame);
+    updatePlaybackUI(elapsed);
+    setOverlay(
+      "STREAM PAUSED",
+      "音画已暂停",
+      `已播放至 ${formatClock(elapsed)}`,
+      "继续播放  [SPACE]",
+      "resume"
+    );
+  }
+
+  async function resumePlayback() {
+    if (!decoder || decoder.state !== "paused") return;
+    await playFrom(pausedAt);
+  }
+
+  function finishPlayback() {
+    if (!decoder) return;
+    stopRaf();
+    stopSource();
+    decoder.state = "ended";
+    pausedAt = decoder.duration;
+    updatePlaybackUI(decoder.duration);
+    startHexDump();
+    setBadge("END", "warn");
+    signalText.textContent = "STREAM END · SOURCE DUMP";
+    hudSync.textContent = "HEX VIEW";
+    setOverlay("END OF STREAM", "播放结束，已返回源码视图", "按空格从头重播", "重新播放  [SPACE]", "replay");
+  }
+
+  async function handleSpace() {
+    if (!decoder) {
+      showToast("请先载入 SVBF .bin 文件");
+      return;
+    }
+    try {
+      if (decoder.state === "ready" || decoder.state === "ended") {
+        await playFrom(0);
+      } else if (decoder.state === "playing") {
+        pausePlayback();
+      } else if (decoder.state === "paused") {
+        await resumePlayback();
+      }
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || "播放失败", true);
+    }
+  }
+
+  overlayAction.addEventListener("click", () => {
+    if (overlayMode === "pick") {
+      binInput.click();
+    } else {
+      handleSpace();
+    }
+  });
+
+  binPickBtn.addEventListener("click", () => binInput.click());
+  binInput.addEventListener("change", () => {
+    const file = binInput.files && binInput.files[0];
+    if (file) loadBin(file);
+    binInput.value = "";
+  });
+
+  ["dragenter", "dragover"].forEach((name) => {
+    screenWrap.addEventListener(name, (event) => {
+      event.preventDefault();
+      screenWrap.classList.add("is-drag");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((name) => {
+    screenWrap.addEventListener(name, (event) => {
+      event.preventDefault();
+      screenWrap.classList.remove("is-drag");
+    });
+  });
+
+  screenWrap.addEventListener("drop", (event) => {
+    const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+    if (file) loadBin(file);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.defaultPrevented) return;
+    if (event.code !== "Space" && event.key !== " ") return;
+    const target = event.target;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) {
+      return;
+    }
+    event.preventDefault();
+    if (event.repeat) return;
+    handleSpace();
+  });
+
+  startStatic();
+  resetInfo();
+  setBadge("NO FILE", "");
+})();
+</script>
+</body>
+</html>
