@@ -1,0 +1,8 @@
+# SVBF 项目：排除测试素材和临时产物
+*.mp4
+*.svbf
+*.svbf.bin
+test-*/
+dl/
+.trae-*/
+trae-svbf-*.ps1
